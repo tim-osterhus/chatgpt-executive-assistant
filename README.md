@@ -1,8 +1,8 @@
 # ChatGPT Executive Assistant
 
-A free Markdown workspace that gives Codex instructions for organizing your projects, remembering your preferences, and coordinating work across connected tools. Open the folder in Codex and let the assistant guide setup through conversation.
+A workspace template that transforms Codex into your personal executive assistant. It includes all the instructions Codex needs for organizing your projects, remembering your preferences, and coordinating work across connected tools and apps. Open the folder in Codex and let the assistant guide setup through conversation.
 
-**For best performance, we recommend at least the $100/month ChatGPT Pro plan.** Plus and Free have substantial usage and capability limitations for this workflow. See [OpenAI’s plan breakdown](https://learn.chatgpt.com/docs/pricing) or [upgrade to Pro](https://chatgpt.com/explore/pro).
+**For best performance, we recommend at least the $100/month ChatGPT Pro plan.** Plus and Free have substantial usage and capability limitations for this workflow, and have not been tested. See [OpenAI’s plan breakdown](https://learn.chatgpt.com/docs/pricing) or [upgrade to Pro](https://chatgpt.com/explore/pro).
 
 ## Start here
 
@@ -12,7 +12,9 @@ A free Markdown workspace that gives Codex instructions for organizing your proj
 
 > Start setup. Read SETUP.md and walk me through it.
 
-Setup asks about you, adjusts to your experience, and helps connect your first project or app. You can add phone access, other computers, and more integrations later.
+Or just point Codex at this repo and tell it to set it up.
+
+Setup asks about you, adjusts to your experience, and helps connect your first project or app. You can easily add phone access, other computers, and more integrations later.
 
 ## One conversation, connected work
 
@@ -41,7 +43,7 @@ Your preferences and project notes live in a generated `local/` folder, excluded
 | [templates/](templates/) | Small formats for personal context, project records, and assignments. |
 | [maintainers.md](maintainers.md) | Release checks and the first beginner pilot. |
 
-No custom server, database, or coding is required to use the template. This initial version targets the Codex desktop workflow. A first beginner pilot is pending.
+No custom server, database, or coding is required to use the template. This initial version targets the Codex desktop app workflow.
 
 Inspired by [Interpretable Context Methodology](https://arxiv.org/abs/2603.16021), by Jake Van Clief and David McDermott: use readable files and selective context to make agent work easier to inspect. This template applies that idea to a personal assistant.
 
