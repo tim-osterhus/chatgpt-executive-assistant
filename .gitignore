@@ -1,0 +1,13 @@
+# Generated personal context and operational records
+/local/
+
+# Local credentials and environment files
+.env
+.env.*
+*.pem
+*.key
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
