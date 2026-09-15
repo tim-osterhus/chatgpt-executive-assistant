@@ -80,9 +80,15 @@ Let the user choose. Complete the selected task, show its source or result, and 
 
 Power users may choose “Do a quick demonstration,” “Connect my selected projects in a batch,” or “Skip the demonstration.” Record a skipped demonstration explicitly. Connection verification still applies.
 
-## 5. Finish the core, then offer extras
+## 5. Recommend phone access, then finish setup
 
-Summarize what the assistant knows, what it can currently access, and the first result. Offer “Start using it,” “Connect another project or app,” “Set up phone access,” or “Adjust my preferences.”
+Summarize what the assistant knows, what it can currently access, and the first result. Explicitly recommend phone access now, before offering other optional integrations. For power users who skipped the demonstration, make this offer after verifying their first connection.
+
+Explain: “I highly recommend connecting your phone. You can return to this same Executive Assistant conversation through Remote and talk to me using Live Voice where available. I can then coordinate your connected projects and report back here.”
+
+Offer “Set up phone and voice now (recommended),” “Later,” or “Keep this desktop-only.” Follow [guides/remote-and-voice.md](guides/remote-and-voice.md) if selected. Record the choice in `local/setup-progress.md`, with separate results for Remote pairing and Live Voice verification. If the user already has a verified connection, reuse it.
+
+Respect a deferral without repeatedly prompting. After this choice or walkthrough, offer “Start using it,” “Connect another project or app,” or “Adjust my preferences.”
 
 Mark `core: complete` only when:
 
@@ -93,6 +99,6 @@ Mark `core: complete` only when:
 
 If the user pauses before this, save `core: in-progress` and the next concrete action. They can resume by saying “Continue setup.” Do not block an unrelated useful request while onboarding is incomplete.
 
-Follow [guides/remote-and-voice.md](guides/remote-and-voice.md) for optional phone access. Offer existing knowledge-base links, other computers, and scheduled follow-ups only when relevant. Each optional connection keeps its own status.
+Phone access remains optional and does not gate core completion. Offer existing knowledge-base links, other computers, and scheduled follow-ups only when relevant. Each optional connection keeps its own status.
 
 Retain this file after setup. `local/setup-progress.md` records completion so later tasks can resume or add connections without repeating onboarding.

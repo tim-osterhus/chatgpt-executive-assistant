@@ -2,6 +2,14 @@
 
 This folder coordinates the user's work. Project systems own their files and live execution state. These Markdown files supply instructions, context, and dated observations.
 
+## Recommended phone orchestration route
+
+Phone → Remote → the existing Executive Assistant task on the host → connected projects and existing tasks → verified results back to the user.
+
+Use ChatGPT Voice, powered by GPT-Live, in that same task when available. The Executive Assistant task remains the coordinator whether the user types or speaks. Follow [guides/remote-and-voice.md](guides/remote-and-voice.md) for pairing and verification.
+
+During setup, explicitly recommend phone access after the first useful result. It is optional: record the user's choice and respect deferral. Do not create a separate voice manager or replacement project tasks by default.
+
 ## Start each task
 
 1. Follow the user's current request first. A request to review or develop this template is not a request to run personal setup.

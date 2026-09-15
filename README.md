@@ -14,7 +14,15 @@ A workspace template that transforms Codex into your personal executive assistan
 
 Or just point Codex at this repo and tell it to set it up.
 
-Setup asks about you, adjusts to your experience, and helps connect your first project or app. You can easily add phone access, other computers, and more integrations later.
+Setup asks about you, adjusts to your experience, and helps connect your first project or app. It then offers phone access as an optional, highly recommended step.
+
+## Talk to your assistant from your phone
+
+Connect your phone through Remote, open your existing **Executive Assistant** task, and use ChatGPT Voice, powered by GPT-Live, where available. That conversation coordinates work across your connected projects and brings results back to you.
+
+The assistant guides pairing, opening the right task, and trying a spoken request. Your computer runs the work and stays awake and connected. Follow [the phone and voice guide](guides/remote-and-voice.md), or say:
+
+> Help me set up Remote and Live Voice so I can manage my projects from my phone.
 
 ## One conversation, connected work
 
