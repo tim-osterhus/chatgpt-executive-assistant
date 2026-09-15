@@ -54,6 +54,10 @@ Check the exact project-creation controls and microphone position on the pilot's
 - Completed core setup with deferred phone access starts ordinary work.
 - Existing project tasks keep their ownership. An uncertain dispatch is inspected before retrying.
 - A tool that is unavailable receives an honest fallback, not a fabricated integration.
+- Optional Voice setup creates or reuses one Astra Light task in the same workspace and preserves the existing High task.
+- Every Live Voice session stays in Voice. A quick authorized action completes there without a needless handoff.
+- Substantial work reaches High, which owns its job record and returns verified results through Voice.
+- Role records distinguish requested models from verified models. Missing Voice capability does not silently move Live Voice to High.
 
 ## Before release
 

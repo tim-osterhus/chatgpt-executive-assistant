@@ -18,6 +18,12 @@ During setup, create the following files under `local/`. Replace examples with c
 ## Optional setup
 
 Record requested extras with status, next action, and any blocker.
+
+- Voice task: not requested
+- Remote pairing: pending
+- Live Voice verification: pending
+- Light-to-High request and reply verification: pending
+- Role identifiers and model verification: see local/index.md
 ```
 
 Use `in-progress` or `complete` for core status. For the first useful task, use `pending`, `verified`, or `skipped by user`, with the reason or evidence. Optional setup can remain deferred after core completion.
@@ -34,6 +40,8 @@ Use `in-progress` or `complete` for core status. For the first useful task, use 
 - Current priorities:
 - Response and explanation style:
 - Coordinator model and reasoning:
+- Voice and quick-action model and reasoning: Astra Light, pending verification
+- Live Voice location: dedicated Executive Assistant Voice task only
 - Worker model and reasoning:
 - Browser-control model:
 - Model policy verification and any fallback:
@@ -47,6 +55,15 @@ Use `in-progress` or `complete` for core status. For the first useful task, use 
 
 ```markdown
 # Assistant index
+
+## Assistant roles
+
+| Role | Exact task ID | Host and workspace folder | Requested model / reasoning | Verified model / reasoning, date, and evidence |
+| --- | --- | --- | --- | --- |
+| Orchestration | unknown | unknown | gpt-6-astra / high | unverified |
+| Voice and quick actions | not created | unknown | gpt-6-astra / low | deferred |
+
+Use Voice for every Live Voice session. Record the actual task titles and links when available. The setup coordinator establishes these records. High maintains central summaries and jobs afterward.
 
 ## Current focus
 

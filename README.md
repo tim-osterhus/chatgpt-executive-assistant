@@ -14,15 +14,17 @@ A workspace template that transforms Codex into your personal executive assistan
 
 Or just point Codex at this repo and tell it to set it up.
 
-Setup asks about you, adjusts to your experience, and helps connect your first project or app. It then offers phone access as an optional, highly recommended step.
+Setup asks about you, adjusts to your experience, and helps connect your first project or app. It then offers phone access as an optional, highly recommended step, with one dedicated Voice task in this Executive Assistant project.
 
 ## Talk to your assistant from your phone
 
-Connect your phone through Remote, open your existing **Executive Assistant** task, and use ChatGPT Voice, powered by GPT-Live, where available. That conversation coordinates work across your connected projects and brings results back to you.
+Connect your phone through Remote, open the dedicated **Executive Assistant Voice** task in this project, and use ChatGPT Voice, powered by GPT-Live, where available. Voice uses Astra Light for every Live Voice session and handles quick self-contained requests directly. For substantial work, it routes to the existing Executive Assistant High orchestration task, which can use project managers and Luna Max workers.
 
-The assistant guides pairing, opening the right task, and trying a spoken request. Your computer runs the work and stays awake and connected. Follow [the phone and voice guide](guides/remote-and-voice.md), or say:
+Keep every Live Voice session in the dedicated Voice task. Ask it for a quick lookup, draft, small edit, or browser action. High handles longer workflows and cross-project coordination. Your computer runs the work and stays awake and connected. Follow [the phone and voice guide](guides/remote-and-voice.md), or say:
 
 > Help me set up Remote and Live Voice so I can manage my projects from my phone.
+
+If Live Voice is active in another task, stop the current voice session, open **Executive Assistant Voice**, and start voice there. Typed requests and dictation remain usable in either task.
 
 ## One conversation, connected work
 
@@ -36,15 +38,15 @@ You might ask:
 
 - “Draft tomorrow’s plan using my connected calendar and project priorities.”
 
-The assistant keeps a small index of what you manage, where the source material lives, and which project or task owns the work. It reads the relevant context when needed. Existing project tasks keep their responsibilities.
+The assistant keeps a small index of what you manage, where the source material lives, and which project or task owns the work. It reads the relevant context when needed. High owns central summaries and jobs. Existing project tasks keep their responsibilities.
 
 Your preferences and project notes live in a generated `local/` folder, excluded from Git by default. You can connect an existing knowledge base without moving it here.
 
-## Astra coordinates, Luna does bounded work
+## Voice handles quick work, High coordinates, Luna does bounded work
 
-The recommended setup uses Astra for persistent project management, decisions, and browser control. Luna Max handles delegated research, implementation, document work, and verification. Astra checks the results and reports back to you.
+The recommended setup uses Astra Light for Live Voice and quick self-contained work. Astra High handles persistent project management, decisions, final acceptance, and substantial browser or computer-control work. Luna Max handles delegated research, implementation, document work, and verification. High checks delegated results and reports back through Voice when you use your phone.
 
-Setup checks model availability and records your preferences. The [work allocation guide](guides/work-allocation.md) explains how to keep assignments focused and avoid unnecessary delegation overhead.
+Setup checks the runtime model catalog and records requested and verified role settings. The [work allocation guide](guides/work-allocation.md) explains the split and how to keep assignments focused without creating duplicate job ownership.
 
 ## What’s in the folder
 

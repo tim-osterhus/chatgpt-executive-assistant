@@ -1,6 +1,8 @@
 # Use your assistant
 
-Return to your **Executive Assistant** conversation and ask for the result you want. You can type, dictate, or use Live Voice where available.
+Open **Executive Assistant Voice** for every Live Voice session, on your phone or computer. Astra Light handles quick requests itself and sends larger work to Astra High. Results come back in your Voice conversation.
+
+For a quick lookup, draft, small edit, or browser action, just ask Voice for the result. You can also type or dictate in either Voice or the High orchestration task.
 
 ## Useful starting requests
 
@@ -33,6 +35,8 @@ Open a new conversation in the same local project and say:
 > Read the assistant index and resume where we left off. Check unfinished assignments before sending new work.
 
 The notes in `local/` supply the context that survives individual conversations.
+
+Continue using the recorded **Executive Assistant Voice** task for Live Voice. A fresh conversation does not automatically replace it. If you started voice elsewhere, stop that voice session, open **Executive Assistant Voice**, and start voice there.
 
 ## Update the template later
 

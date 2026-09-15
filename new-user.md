@@ -83,4 +83,4 @@ Copy this message into the new chat and send it:
 
 The assistant will ask a few questions, help connect something useful, and complete a first task with you.
 
-Come back to this same **Executive Assistant** conversation whenever you want help. Setup will recommend connecting your phone so you can manage work through Remote and Live Voice where available. This step is optional, and the assistant will guide you through it.
+Come back to the **Executive Assistant** project whenever you want help. Setup will recommend connecting your phone through Remote and creating or reusing one dedicated **Executive Assistant Voice** task in that project. Keep Live Voice in that task. Voice uses Astra Light for conversation and quick self-contained requests, then routes substantial work to the existing Astra High orchestration task. Typed requests and dictation work in either task. Phone and Live Voice remain optional, and the assistant will guide you through the choice.

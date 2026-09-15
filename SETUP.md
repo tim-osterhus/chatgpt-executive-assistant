@@ -53,13 +53,15 @@ Do not treat a working-style answer as blanket authorization for external action
 
 Browser-only users need a short explanation of local files and permissions. Agent users can skip basic concepts. Power users can provide their preferences and selected project roots in one message.
 
-### Recommend the coordinator and worker split
+### Set up the Voice and High roles
 
-Check available models and subagent tools. Recommend Astra High for the persistent assistant and Luna Max for bounded work that does not require browser control. Explain simply: “Astra manages the work and uses the browser. Luna handles focused assignments, and Astra checks the results.”
+Check the runtime model catalog and available task tools. Recommend a dedicated Astra Light Voice task with model `gpt-6-astra` and reasoning `low`, plus the existing Astra High orchestration task with model `gpt-6-astra` and reasoning `high`. The desktop **Light** label maps to CLI `low`. Verify each active model and reasoning setting instead of assuming the written policy changed the task.
 
-Offer “Use this recommended setup,” “Keep my current model settings,” or “Help me choose.” Respect an existing explicit preference without asking again. Follow [guides/work-allocation.md](guides/work-allocation.md) to apply supported project defaults and explicit worker settings. Save the chosen policy and its verification status in `local/preferences.md`.
+Explain simply: “Voice handles Live Voice and quick self-contained work. High handles substantial planning, cross-project coordination, long execution, final acceptance, and central summaries and jobs. Luna handles focused delegated work, and High checks the results.” Light owns the decision and completion check for small authorized actions. A quick browser action may stay on Voice when supported. For substantial work, route substantial browser or computer-control work to High.
 
-Do not delay the first useful task to benchmark models. If the recommended models are unavailable, offer an available pair or keep the current setup.
+Offer “Use this recommended setup,” “Keep my current model settings,” or “Help me choose.” Respect an existing explicit preference without asking again. Follow [guides/work-allocation.md](guides/work-allocation.md) to apply supported project defaults and explicit worker settings. Save the chosen policy and its requested and verified role settings in `local/preferences.md` and the generated role records.
+
+Do not delay the first useful task to benchmark models. If High is unavailable, offer an available coordinator or keep the current setup. If Light, Live Voice, or the required Voice task tools are unavailable, record Voice setup as deferred. Keep typed requests and dictation available in either task. Do not silently route Live Voice through High. Follow an explicit user override and record it.
 
 ## 3. Connect one useful thing
 
@@ -88,13 +90,15 @@ Let the user choose. Complete the selected task, show its source or result, and 
 
 Power users may choose “Do a quick demonstration,” “Connect my selected projects in a batch,” or “Skip the demonstration.” Record a skipped demonstration explicitly. Connection verification still applies.
 
-## 5. Recommend phone access, then finish setup
+## 5. Recommend phone access and set up Voice, then finish setup
 
 Summarize what the assistant knows, what it can currently access, and the first result. Explicitly recommend phone access now, before offering other optional integrations. For power users who skipped the demonstration, make this offer after verifying their first connection.
 
-Explain: “I highly recommend connecting your phone. You can return to this same Executive Assistant conversation through Remote and talk to me using Live Voice where available. I can then coordinate your connected projects and report back here.”
+Explain: “I highly recommend connecting your phone. Through Remote, open the dedicated Executive Assistant Voice task in this project and use Live Voice there when available. Voice handles conversation and quick work, then sends substantial work to the existing High orchestration task. I can report verified results back through Voice.”
 
-Offer “Set up phone and voice now (recommended),” “Later,” or “Keep this desktop-only.” Follow [guides/remote-and-voice.md](guides/remote-and-voice.md) if selected. Record the choice in `local/setup-progress.md`, with separate results for Remote pairing and Live Voice verification. If the user already has a verified connection, reuse it.
+Offer “Create or reuse one dedicated Voice task in this project (recommended),” “Later,” or “Keep this desktop-only.” Follow [guides/remote-and-voice.md](guides/remote-and-voice.md) if selected. The user's selection to create or reuse a Voice task authorizes that one supported task-tool action. Resolve the current **Executive Assistant** local project and existing High task first. If no Voice task exists and the user selects creation, create exactly one dedicated Voice task in that same project when a supported task tool is available. Preserve the High task. Do not create more managers or replacement project tasks.
+
+Record the choice in `local/setup-progress.md`, with separate results for Remote pairing and Live Voice verification. Record the Voice and High role identifiers, hosts, requested models and reasoning, verified models and reasoning, and verification dates. If the user already has a verified Voice task, reuse it. If the task, model, or Live Voice is unavailable, record Voice as deferred and keep typed or dictated use available. Do not automatically transfer a Live Voice session from another task. Tell the user: “Stop the current voice session, open Executive Assistant Voice, and start voice there.”
 
 Respect a deferral without repeatedly prompting. After this choice or walkthrough, offer “Start using it,” “Connect another project or app,” or “Adjust my preferences.”
 
@@ -104,9 +108,10 @@ Mark `core: complete` only when:
 - At least one useful connection is verified with a source and date.
 - The first useful task is verified, or the user explicitly skipped it.
 - `local/index.md` routes to the connected source and records unresolved optional work.
+- The Voice and High role records include their task identifiers, hosts, requested settings, verified settings, and dates, or an explicit deferred status.
 
 If the user pauses before this, save `core: in-progress` and the next concrete action. They can resume by saying “Continue setup.” Do not block an unrelated useful request while onboarding is incomplete.
 
-Phone access remains optional and does not gate core completion. Offer existing knowledge-base links, other computers, and scheduled follow-ups only when relevant. Each optional connection keeps its own status.
+Phone access and the dedicated Voice task remain optional and do not gate core completion. Keep Live Voice in the dedicated Voice task by default. Typed requests and dictation work in either task. Offer existing knowledge-base links, other computers, and scheduled follow-ups only when relevant. Each optional connection keeps its own status.
 
 Retain this file after setup. `local/setup-progress.md` records completion so later tasks can resume or add connections without repeating onboarding.
