@@ -53,6 +53,14 @@ Do not treat a working-style answer as blanket authorization for external action
 
 Browser-only users need a short explanation of local files and permissions. Agent users can skip basic concepts. Power users can provide their preferences and selected project roots in one message.
 
+### Recommend the coordinator and worker split
+
+Check available models and subagent tools. Recommend Astra High for the persistent assistant and Luna Max for bounded work that does not require browser control. Explain simply: “Astra manages the work and uses the browser. Luna handles focused assignments, and Astra checks the results.”
+
+Offer “Use this recommended setup,” “Keep my current model settings,” or “Help me choose.” Respect an existing explicit preference without asking again. Follow [guides/work-allocation.md](guides/work-allocation.md) to apply supported project defaults and explicit worker settings. Save the chosen policy and its verification status in `local/preferences.md`.
+
+Do not delay the first useful task to benchmark models. If the recommended models are unavailable, offer an available pair or keep the current setup.
+
 ## 3. Connect one useful thing
 
 Offer choices that match the user's goal and available tools:

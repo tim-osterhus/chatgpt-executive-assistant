@@ -40,6 +40,12 @@ The assistant keeps a small index of what you manage, where the source material 
 
 Your preferences and project notes live in a generated `local/` folder, excluded from Git by default. You can connect an existing knowledge base without moving it here.
 
+## Astra coordinates, Luna does bounded work
+
+The recommended setup uses Astra for persistent project management, decisions, and browser control. Luna Max handles delegated research, implementation, document work, and verification. Astra checks the results and reports back to you.
+
+Setup checks model availability and records your preferences. The [work allocation guide](guides/work-allocation.md) explains how to keep assignments focused and avoid unnecessary delegation overhead.
+
 ## What’s in the folder
 
 | File or folder | Purpose |

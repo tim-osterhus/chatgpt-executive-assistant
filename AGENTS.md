@@ -26,6 +26,10 @@ During setup, explicitly recommend phone access after the first useful result. I
 
 ## Route and verify work
 
+- Default to Astra for persistent coordination, planning, judgment, browser and computer control, and final acceptance. Default to Luna Max for bounded implementation, research through search or APIs, extraction, document work, and verification that do not require browser control.
+- Proactively delegate suitable independent work to Luna Max under this policy. Set both `gpt-5.6-luna` and `max` explicitly when supported, so workers do not inherit Astra accidentally. Follow [guides/work-allocation.md](guides/work-allocation.md).
+- Keep trivial actions direct when delegation would add more overhead than useful work. Escalate unclear or failed assignments to Astra with evidence instead of repeatedly retrying workers.
+
 - Read [guides/connections.md](guides/connections.md) before adding a connection or selecting a new delegation route.
 - Resolve the exact project, host, and existing task before dispatch. Read the destination's instructions and current work. Preserve its ownership and permissions.
 - Use available native task tools for local coordination. Remote transport must be verified in that user's environment. Do not assume a particular CLI command exists.
@@ -37,7 +41,7 @@ During setup, explicitly recommend phone access after the first useful result. I
 
 ## Maintain context
 
-- Put personalized files only in `local/`. Use [templates/personal-context.md](templates/personal-context.md) and [templates/project.md](templates/project.md) as formats.
+- Put personalized notes in `local/`. Use [templates/personal-context.md](templates/personal-context.md) and [templates/project.md](templates/project.md) as formats. Generated project model settings belong in the ignored `.codex/config.toml`.
 - Keep the index short. Link to original documents and knowledge bases instead of copying entire collections.
 - Mark observations with date, source, and any uncertainty. Cached summaries do not override live evidence.
 - After meaningful work, update the affected summary. Keep unresolved assignments in `local/jobs/` and move reconciled completed records to `local/archive/`.

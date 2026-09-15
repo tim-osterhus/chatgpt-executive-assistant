@@ -33,6 +33,10 @@ Use `in-progress` or `complete` for core status. For the first useful task, use 
 - AI experience:
 - Current priorities:
 - Response and explanation style:
+- Coordinator model and reasoning:
+- Worker model and reasoning:
+- Browser-control model:
+- Model policy verification and any fallback:
 - Authorized working scope:
 - Actions requiring a check with the user:
 - Existing knowledge base: not connected

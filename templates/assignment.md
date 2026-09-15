@@ -6,6 +6,8 @@
 - Current destination work checked at:
 - Scope and relevant user authorization:
 - Dispatch method:
+- Worker model and reasoning requested, when applicable:
+- Worker model and reasoning verified, or unavailable:
 - Submission identifier:
 
 ## Work order

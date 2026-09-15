@@ -1,5 +1,6 @@
 # Generated personal context and operational records
 /local/
+/.codex/config.toml
 
 # Local credentials and environment files
 .env
