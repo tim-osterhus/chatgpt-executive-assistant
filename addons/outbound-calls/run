@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+umask 077
+bundle_dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
+export PATH="$bundle_dir/.state/tools/node_modules/.bin:$bundle_dir/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+require_cli() {
+  command -v codex >/dev/null || { echo "Run setup to install this runtime's Codex CLI." >&2; exit 1; }
+  [ "$(codex --version)" = "codex-cli 0.160.0" ] || { echo "This runtime requires its tested Codex CLI 0.160.0." >&2; exit 1; }
+}
+mode="${1:-}"
+case "$mode" in
+  login|login-status)
+    require_cli
+    mkdir -p "$bundle_dir/.state/profile"
+    if [ "$mode" = login ]; then
+      exec env CODEX_HOME="$bundle_dir/.state/profile" codex login -c 'cli_auth_credentials_store="file"'
+    fi
+    exec env CODEX_HOME="$bundle_dir/.state/profile" codex login status
+    ;;
+  validate|result|call|diagnose)
+    test -x "$bundle_dir/.venv/bin/python" || { echo "Run ./setup.sh first." >&2; exit 1; }
+    if [ "$mode" = call ]; then
+      require_cli
+      mkdir -p "$bundle_dir/.state/home" "$bundle_dir/.state/tmp" "$bundle_dir/.state/cache"
+    fi
+    exec "$bundle_dir/.venv/bin/python" -I -B "$bundle_dir/runtime/call_runner.py" "$mode"
+    ;;
+  *)
+    echo "Usage: ./run {login|login-status|diagnose|validate|call|result}" >&2
+    exit 2
+    ;;
+esac

@@ -12,3 +12,12 @@
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Generated optional calling runtime dependencies and evidence
+/addons/outbound-calls/.state/
+/addons/outbound-calls/.venv/
+/addons/outbound-calls/bin/
+/addons/outbound-calls/runtime/fixtures/disclosure.wav
+__pycache__/
+
+/addons/outbound-calls/.plugin-venv/

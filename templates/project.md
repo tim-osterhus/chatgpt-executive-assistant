@@ -14,11 +14,15 @@
 
 - Existing owner or task identifier:
 
+- Current work checked at:
+
 - Connection reference:
 
 - Verified dispatch and result-reading methods:
 
 - Authorized scope and project-specific boundaries:
+
+- Retry or uncertain-submission procedure:
 
 - Knowledge-base references, if useful:
 

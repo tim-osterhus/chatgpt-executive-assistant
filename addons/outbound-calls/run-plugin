@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+umask 077
+bundle_dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)"
+unset CONTROL_PLANE_API_KEY OPENAI_API_KEY CODEX_ACCESS_TOKEN
+exec "$bundle_dir/.plugin-venv/bin/python" -I -B "$bundle_dir/runtime/calling_mcp.py"

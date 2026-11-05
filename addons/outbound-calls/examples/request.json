@@ -1,0 +1,5 @@
+{
+  "request_id": "example-alert-001",
+  "focus": "a selected project needs a decision",
+  "briefing": "The project owner reports that the review draft is ready. The assistant has not independently verified acceptance. Explain that update, ask whether the user wants to review it, and capture any requested follow-up. The voice agent cannot open the draft or perform the follow-up during this call."
+}
