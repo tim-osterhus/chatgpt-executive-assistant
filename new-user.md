@@ -83,4 +83,6 @@ Copy this message into the new chat and send it:
 
 The assistant will ask a few questions, help connect something useful, and complete a first task with you.
 
-Come back to the **Executive Assistant** project whenever you want help. Setup will recommend connecting your phone through Remote and creating or reusing one dedicated **Executive Assistant Voice** task in that project. Keep Live Voice in that task. Voice uses Astra Light for conversation and quick self-contained requests, then routes substantial work to the existing Astra High orchestration task. Typed requests and dictation work in either task. Phone and Live Voice remain optional, and the assistant will guide you through the choice.
+Come back to the **Executive Assistant** project whenever you want help. Setup will connect one useful source and complete a first useful task with you. It uses the model settings already selected for your task and keeps your notes private under `local/`.
+
+After that first task, you can optionally set up phone access and Live Voice, or the separate [outbound-calling add-on](addons/outbound-calls/README.md). Each option has its own setup instructions and status. Phone voice is not required for outbound calls, and calls do not require Context Mill. The assistant will guide you through whichever option you choose.

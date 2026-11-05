@@ -1,0 +1,14 @@
+{
+  "request_id": "example-alert-001",
+  "status": "review_required",
+  "call_id": "CA00000000000000000000000000000000",
+  "carrier_status": "completed",
+  "ended_by": "assistant_goodbye",
+  "turns": [
+    {"role": "user", "text": "Please prepare the review link for me. No other changes."},
+    {"role": "assistant", "text": "I will pass on your request for the review link. I have not opened it or changed the project. Is that right?"},
+    {"role": "user", "text": "Yes, that's right. Goodbye."},
+    {"role": "assistant", "text": "Goodbye."}
+  ],
+  "evidence_path": "PRIVATE_RUNTIME_STATE/runs/example-alert-001/evidence/result.json"
+}

@@ -5,14 +5,15 @@
 - Destination project, host, and exact task identifier:
 - Current destination work checked at:
 - Scope and relevant user authorization:
+- Existing owner and responsibility preserved:
 - Dispatch method:
-- Worker model and reasoning requested, when applicable:
-- Worker model and reasoning verified, or unavailable:
+- Worker preference requested, when applicable:
+- Actual worker settings verified, or unavailable:
 - Submission identifier:
 
 ## Work order
 
-- Objective:
+- Objective and requested outcome:
 - Required inputs and source instructions:
 - Allowed changes and ownership boundaries:
 - Completion criteria:
@@ -25,4 +26,4 @@
 - Verification performed:
 - Outcome and unresolved work:
 
-Use `prepared`, `submitted`, `running`, `blocked`, `uncertain`, or `complete` based on evidence. Keep this record in `local/jobs/` until reconciled. Move completed records to `local/archive/`.
+Use `prepared`, `submitted`, `running`, `blocked`, `uncertain`, or `complete` based on evidence. Submission is not completion. If a submission is uncertain, inspect the exact destination before retrying. Keep this record in `local/jobs/` until reconciled, then move completed records to `local/archive/`.

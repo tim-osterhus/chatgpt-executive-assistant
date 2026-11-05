@@ -44,6 +44,16 @@ Keep the knowledge base in its current location. Read its index and maintenance 
 
 This assistant stores operational summaries. Propose durable knowledge changes through the knowledge base's established owner when one exists.
 
+## Optional outbound calling
+
+Outbound calling is a separately installed local skill and CLI workflow, not a published MCP plugin. It is independent of core setup, phone Remote, Live Voice, and Context Mill. Offer it after the first useful task and only set it up if the user opts in. Read the [add-on overview](../addons/outbound-calls/README.md) and follow its [setup guide](../addons/outbound-calls/SETUP.md). Keep its status separate in `local/setup-progress.md` and `local/connections.md`.
+
+The user may request a call directly. Notification rules need a user-selected situation and source, then verified registration through supported scheduling or event tools. Do not promise general monitoring, invent urgency, or configure a schedule merely by installing calling.
+
+Before the call, read the relevant connected source, confirm the facts needed, and prepare a briefing. The separate voice agent speaks from that briefing; it has no live retrieval or project-action route during the call. After the call, retrieve and review the exact saved receipt before reporting decisions or follow-up. Do not treat submission as completion. If a send is uncertain, inspect its saved result before any retry; never redial to resolve uncertainty.
+
+Calls do not require Context Mill. Its design is deferred in [addons/context-mill/README.md](../addons/context-mill/README.md); a future read integration would be an optional, separate decision. Do not claim it is installed or running.
+
 ## Failure and recovery
 
 Record a blocked connection with the last successful observation and the next concrete action. Offer reconnection, a different source, or deferral.

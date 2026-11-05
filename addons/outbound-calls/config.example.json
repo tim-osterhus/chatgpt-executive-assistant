@@ -1,0 +1,11 @@
+{
+  "from_number": "",
+  "to_number": "",
+  "keychain_account": "your-account-label",
+  "keychain_service_prefix": "executive-assistant-calls",
+  "assistant_name": "Executive Assistant",
+  "participant_name": "the participant",
+  "checkin_purpose": "a requested assistant conversation",
+  "spoken_disclosure": true,
+  "max_call_seconds": 2700
+}
