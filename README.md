@@ -31,9 +31,13 @@ Your preferences and project notes live in a generated `local/` folder, excluded
 
 You can type or dictate in your existing task. If you want to work from your phone, set up Remote and try Live Voice when it is available. This is optional and does not require a separate Voice task. See [phone access and Live Voice](guides/remote-and-voice.md).
 
-You can also install the separate [optional outbound-calling add-on](addons/outbound-calls/README.md). It runs locally as a skill and CLI workflow, not as a published MCP plugin. Set it up independently after your first useful task using its [setup guide](addons/outbound-calls/SETUP.md). It supports calls you ask the assistant to make and notification calls for situations and sources you explicitly select. It does not provide blanket active monitoring. Before a call, the coordinator prepares the relevant context; the voice agent speaks from that briefing and cannot retrieve project information or take project actions during the call. The coordinator reviews the saved call receipt afterward. Calls do not require Context Mill.
+You can also install the separate [optional outbound-calling add-on](addons/outbound-calls/README.md). Choose the local skill/CLI route or the [private MCP plugin](addons/outbound-calls/PRIVATE-PLUGIN.md) for direct Dot calls. Both use the same local voice runtime.
 
-The [Context Mill design](addons/context-mill/README.md) is deferred. An optional read integration may be considered later; it is not installed or required by this template.
+Set it up independently after your first useful task using its [setup guide](addons/outbound-calls/SETUP.md). It supports calls you ask the assistant to make and notification calls for situations and sources you explicitly select. It does not provide blanket active monitoring.
+
+Before a call, the coordinator prepares the relevant context. The voice agent speaks from that briefing and cannot retrieve project information or take project actions. The coordinator reviews the saved call receipt afterward. Calls do not require Context Mill.
+
+The [Context Mill design](addons/context-mill/README.md) is deferred. An optional read integration may be considered later. This template does not install or require that integration.
 
 ## What’s in the folder
 

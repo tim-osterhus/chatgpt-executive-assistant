@@ -20,7 +20,10 @@ def request_from_stdin():
     raw = sys.stdin.buffer.read(16385)
     if len(raw) > 16384:
         raise ValueError("Call request exceeds 16384 bytes")
-    request = json.loads(raw)
+    return validate_request(json.loads(raw))
+
+
+def validate_request(request):
     required = {"request_id", "focus"}
     if not isinstance(request, dict) or not required <= request.keys() or request.keys() - required - {"briefing"}:
         raise ValueError("Supply request_id, focus, and optionally briefing")

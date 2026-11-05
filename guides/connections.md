@@ -46,7 +46,7 @@ This assistant stores operational summaries. Propose durable knowledge changes t
 
 ## Optional outbound calling
 
-Outbound calling is a separately installed local skill and CLI workflow, not a published MCP plugin. It is independent of core setup, phone Remote, Live Voice, and Context Mill. Offer it after the first useful task and only set it up if the user opts in. Read the [add-on overview](../addons/outbound-calls/README.md) and follow its [setup guide](../addons/outbound-calls/SETUP.md). Keep its status separate in `local/setup-progress.md` and `local/connections.md`.
+Outbound calling uses a separately installed local runtime. Choose its skill/CLI route or the optional [private MCP plugin](../addons/outbound-calls/PRIVATE-PLUGIN.md) for direct Dot calls. It is independent of core setup, phone Remote, Live Voice, and Context Mill. Offer it after the first useful task and only set it up if the user opts in. Read the [add-on overview](../addons/outbound-calls/README.md) and follow its [setup guide](../addons/outbound-calls/SETUP.md). Keep its status separate in `local/setup-progress.md` and `local/connections.md`.
 
 The user may request a call directly. Notification rules need a user-selected situation and source, then verified registration through supported scheduling or event tools. Do not promise general monitoring, invent urgency, or configure a schedule merely by installing calling.
 
