@@ -18,6 +18,8 @@ Desktop.ini
 /addons/outbound-calls/.venv/
 /addons/outbound-calls/bin/
 /addons/outbound-calls/runtime/fixtures/disclosure.wav
-__pycache__/
-
 /addons/outbound-calls/.plugin-venv/
+/addons/outbound-calls/generated/
+node_modules/
+__pycache__/
+*.aiff

@@ -1,4 +1,4 @@
-# Python 3.12 on Apple Silicon. Versions from the working Cortana runtime.
+# Python 3.12 on Apple Silicon. Versions from the tested calling runtime.
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.5

@@ -86,6 +86,16 @@ class CallingMcpTests(unittest.TestCase):
         self.assertEqual(result["status"], "rejected")
         popen.assert_called_once()
 
+    def test_outcome_is_bound_to_the_saved_mcp_request(self):
+        self.enable_dialing()
+        with mock.patch.object(calling.subprocess, "Popen", side_effect=self.fake_spawn) as popen:
+            first = calling.request_call("call-outcome", "Test", "Verified result.", "complete")
+            second = calling.request_call("call-outcome", "Test", "Verified result.", "unclear")
+        self.assertEqual(first["status"], "accepted")
+        self.assertEqual(second["status"], "rejected")
+        self.assertEqual(json.loads((self.ledger / "call-outcome/request.json").read_text())["outcome"], "complete")
+        popen.assert_called_once()
+
     def test_unknown_status_is_read_only(self):
         result = calling.get_call_status("unknown-001")
         self.assertEqual(result, {"request_id": "unknown-001", "status": "request_not_found"})
@@ -124,18 +134,6 @@ class CallingMcpTests(unittest.TestCase):
         self.assertNotIn("evidence_path", result)
         self.assertNotIn("/private/host/path", json.dumps(result))
 
-    def test_mismatched_receipt_cannot_complete_original_request(self):
-        self.enable_dialing()
-        with mock.patch.object(calling.subprocess, "Popen", side_effect=self.fake_spawn):
-            self.request()
-        folder = self.ledger / "call-001"
-        request = json.loads((folder / "request.json").read_text())
-        (folder / "runner.stdout.json").write_text(json.dumps({
-            **request, "request_id": "other-001", "status": "review_required",
-            "call_id": "CA" + "1" * 32, "carrier_status": "completed",
-        }))
-        self.assertEqual(calling.get_call_status("call-001")["status"], "pending_or_uncertain")
-
     def test_unavailable_or_unresolved_dial_does_not_release_admission(self):
         self.enable_dialing()
         with mock.patch.object(calling.subprocess, "Popen", side_effect=self.fake_spawn) as popen:
@@ -148,6 +146,28 @@ class CallingMcpTests(unittest.TestCase):
                 self.assertEqual(calling.get_call_status("call-001")["status"], "pending_or_uncertain")
                 self.assertEqual(self.request("call-002")["status"], "busy")
             popen.assert_called_once()
+
+    def test_voicemail_receipt_releases_admission_and_same_id_never_redials(self):
+        self.enable_dialing()
+        with mock.patch.object(calling.subprocess, "Popen", side_effect=self.fake_spawn) as popen:
+            self.request()
+            directory = self.ledger / "call-001"
+            request = json.loads((directory / "request.json").read_text())
+            result = {**request, "status": "voicemail_played", "call_id": "CA" + "1" * 32,
+                "carrier_status": "completed", "answered_by": "machine_end_beep", "turns": [],
+                "delivery": {"kind": "voicemail", "status": "played", "playback_completed": True,
+                    "playback_evidence": "authenticated_post_say_redirect", "human_conversation_confirmed": False}}
+            # A carrier-completed claim without authenticated playback does not release admission.
+            invalid = {**result, "delivery": {"kind": "voicemail", "playback_completed": False}}
+            (directory / "runner.stdout.json").write_text(json.dumps(invalid))
+            self.assertEqual(self.request("call-002")["status"], "busy")
+            (directory / "runner.stdout.json").write_text(json.dumps(result))
+            saved = self.request()
+            self.assertEqual(saved["status"], "voicemail_played")
+            self.assertFalse(saved["delivery"]["human_conversation_confirmed"])
+            self.assertEqual(popen.call_count, 1)
+            self.assertEqual(self.request("call-002")["status"], "accepted")
+            self.assertEqual(popen.call_count, 2)
 
     def test_spawn_is_detached_and_receives_only_sanitized_environment(self):
         self.enable_dialing()
@@ -164,6 +184,27 @@ class CallingMcpTests(unittest.TestCase):
         self.assertTrue(kwargs["start_new_session"])
         self.assertEqual(set(kwargs["env"]), {"PATH", "HOME", "LANG", "TMPDIR"})
         self.assertNotIn("tunnel-secret", json.dumps(kwargs["env"]))
+
+    def test_live_voicemail_requires_sealed_sender_and_exact_mark_but_preserves_old_receipts(self):
+        self.enable_dialing()
+        with mock.patch.object(calling.subprocess,"Popen",side_effect=self.fake_spawn) as popen:
+            self.request()
+            directory=self.ledger/'call-001';request=json.loads((directory/'request.json').read_text())
+            delivery={'kind':'voicemail','status':'played','playback_completed':True,
+                'playback_evidence':'twilio_final_mark','source_completion':'inferred_turn_done_and_receiver_quiet',
+                'finite_pcm_sealed':True,'sender_queue_drained':True,'matching_final_mark':True,
+                'source_receiver_healthy_at_seal':True,
+                'no_clear_during_playback':True,'submitted_pcm_samples':8000,'human_conversation_confirmed':False}
+            receipt={**request,'status':'voicemail_played','carrier_status':'completed','call_id':'CA'+'1'*32,
+                     'answered_by':'machine_end_beep','delivery':delivery}
+            for key in ('finite_pcm_sealed','sender_queue_drained','matching_final_mark','no_clear_during_playback','source_receiver_healthy_at_seal'):
+                (directory/'runner.stdout.json').write_text(json.dumps({**receipt,'delivery':{**delivery,key:False}}))
+                self.assertEqual(self.request('call-002')['status'],'busy')
+            (directory/'runner.stdout.json').write_text(json.dumps(receipt))
+            saved=self.request()
+            self.assertEqual(saved['status'],'voicemail_played')
+            self.assertIn('inferred',saved['delivery']['source_completion'])
+            popen.assert_called_once()
 
     def test_request_is_durable_before_spawn(self):
         self.enable_dialing()
@@ -197,6 +238,18 @@ class CallingMcpTests(unittest.TestCase):
         self.assertTrue(health.structuredContent["config_ready"])
         self.assertEqual(health.structuredContent["recipient_last4"], "4444")
         self.assertNotIn(self.config["to_number"], json.dumps(health.structuredContent))
+
+    def test_mismatched_receipt_cannot_complete_original_request(self):
+        self.enable_dialing()
+        with mock.patch.object(calling.subprocess, "Popen", side_effect=self.fake_spawn):
+            self.request()
+        folder = self.ledger / "call-001"
+        request = json.loads((folder / "request.json").read_text())
+        (folder / "runner.stdout.json").write_text(json.dumps({
+            **request, "request_id": "other-001", "status": "review_required",
+            "call_id": "CA" + "1" * 32, "carrier_status": "completed",
+        }))
+        self.assertEqual(calling.get_call_status("call-001")["status"], "pending_or_uncertain")
 
 
 class PrivatePluginSetupTests(unittest.TestCase):
@@ -253,6 +306,19 @@ class PrivatePluginSetupTests(unittest.TestCase):
         unpack.assert_called_once_with(data, self.helper.CLIENT_SHA256, self.helper.CLIENT)
         self.assertEqual(run.call_count, 2)
         self.assertIn(".plugin-venv", str(run.call_args_list))
+
+    def test_local_mcp_dependencies_never_fetch_the_tunnel_client(self):
+        with mock.patch.object(self.helper.sys, "argv", ["private_plugin.py", "install-mcp-deps"]), \
+             mock.patch.object(self.helper.sys, "version_info", (3, 12)), \
+             mock.patch.object(self.helper.platform, "system", return_value="Darwin"), \
+             mock.patch.object(self.helper.platform, "machine", return_value="arm64"), \
+             mock.patch.object(self.helper.urllib.request, "urlopen", side_effect=AssertionError("network")), \
+             mock.patch.object(self.helper, "install_archive", side_effect=AssertionError("client")), \
+             mock.patch.object(self.helper.subprocess, "run") as run:
+            self.helper.main()
+        self.assertEqual(run.call_count, 2)
+        self.assertIn(".plugin-venv", str(run.call_args_list))
+        self.assertIn("requirements-plugin.lock", str(run.call_args_list[-1]))
 
     def test_keychain_store_uses_stdin_and_readback(self):
         secret = "sk-synthetic-only-test-secret"

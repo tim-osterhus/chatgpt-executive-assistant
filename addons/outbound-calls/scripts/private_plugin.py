@@ -52,18 +52,27 @@ def install_archive(data, expected_sha256, target):
         temporary.unlink(missing_ok=True)
 
 
-def install():
+def check_platform():
     if sys.version_info[:2] != (3, 12):
         raise SystemExit("Run this installer with the calling runtime Python 3.12 (.venv/bin/python).")
     if (platform.system(), platform.machine()) != ("Darwin", "arm64"):
         raise SystemExit("This pinned installer supports Apple Silicon macOS only.")
-    with urllib.request.urlopen(CLIENT_URL, timeout=60) as response:
-        data = response.read(MAX_ARCHIVE_BYTES + 1)
-    install_archive(data, CLIENT_SHA256, CLIENT)
+
+
+def install_mcp_dependencies():
+    """Local stdio MCP packages only; the optional watcher needs these, not the tunnel client."""
     venv = ROOT / ".plugin-venv"
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
     subprocess.run([str(venv / "bin/python"), "-m", "pip", "install",
                     "-r", str(ROOT / "requirements-plugin.lock")], check=True)
+
+
+def install():
+    check_platform()
+    with urllib.request.urlopen(CLIENT_URL, timeout=60) as response:
+        data = response.read(MAX_ARCHIVE_BYTES + 1)
+    install_archive(data, CLIENT_SHA256, CLIENT)
+    install_mcp_dependencies()
     print("Installed the pinned tunnel client and isolated plugin dependencies. The dialing gate was not changed.")
 
 
@@ -102,12 +111,17 @@ def store_key():
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("install", "store-key", "configure", "connect", "status", "stop"))
+    parser.add_argument("mode", choices=("install", "install-mcp-deps", "store-key", "configure", "connect", "status", "stop"))
     parser.add_argument("--tunnel-id")
     parser.add_argument("--workspace-id")
     args = parser.parse_args()
     if args.mode == "install":
         install()
+        return
+    if args.mode == "install-mcp-deps":
+        check_platform()
+        install_mcp_dependencies()
+        print("Installed isolated local MCP dependencies. No tunnel client, connection, or dialing gate changed.")
         return
     if args.mode == "store-key":
         store_key()

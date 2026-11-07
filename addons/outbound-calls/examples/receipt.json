@@ -1,9 +1,17 @@
 {
   "request_id": "example-alert-001",
   "status": "review_required",
+  "transport": "sdk",
   "call_id": "CA00000000000000000000000000000000",
+  "parent_call_id": "CA11111111111111111111111111111111",
+  "child_call_id": "CA00000000000000000000000000000000",
   "carrier_status": "completed",
+  "answered_by": "human",
+  "destination_last4": "0102",
   "ended_by": "assistant_goodbye",
+  "physical_calls_terminal": true,
+  "local_resources_stopped": true,
+  "admission_restored": true,
   "turns": [
     {"role": "user", "text": "Please prepare the review link for me. No other changes."},
     {"role": "assistant", "text": "I will pass on your request for the review link. I have not opened it or changed the project. Is that right?"},

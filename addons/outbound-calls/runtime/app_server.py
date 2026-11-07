@@ -13,6 +13,8 @@ import shutil
 import wave
 import uuid
 
+from call_profiles import select_profile
+
 from aiortc import AudioStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
 from av import AudioFrame, AudioResampler
 
@@ -23,7 +25,7 @@ RATE = 48000
 SILENCE = bytes(FRAME_SAMPLES * 2)
 
 
-class PilotError(RuntimeError):
+class AppServerError(RuntimeError):
     pass
 
 
@@ -39,7 +41,7 @@ def environment():
 def pcm_fixture(path):
     with wave.open(str(path), "rb") as wav:
         if (wav.getnchannels(), wav.getsampwidth(), wav.getframerate()) != (1, 2, RATE):
-            raise PilotError("fixture_requires_48k_mono_pcm16")
+            raise AppServerError("fixture_requires_48k_mono_pcm16")
         pcm = wav.readframes(wav.getnframes())
     return [pcm[i:i + len(SILENCE)].ljust(len(SILENCE), b"\0")
             for i in range(0, len(pcm), len(SILENCE))]
@@ -136,8 +138,9 @@ def error_category(message):
 
 
 class AppServer:
-    def __init__(self, result):
+    def __init__(self, result, backend_profile=None):
         self.result = result
+        self.backend_profile = backend_profile or select_profile()
         self.thread_id = None
         self.session_id = str(uuid.uuid4())
         self.pending = {}
@@ -158,7 +161,10 @@ class AppServer:
             shutil.which("codex"), "app-server", "--listen", "stdio://", "--enable", "realtime_conversation",
             "-c", 'forced_login_method="chatgpt"', "-c", 'cli_auth_credentials_store="file"',
             "-c", "check_for_update_on_startup=false", "-c", "analytics.enabled=false",
-            "-c", "feedback.enabled=false", cwd=cwd, env=environment(), limit=1_048_576,
+            "-c", "feedback.enabled=false", "-c", "features.apps=false", "-c", "features.plugins=false",
+            "-c", "features.shell_tool=false", "-c", "features.browser_use=false",
+            "-c", "features.computer_use=false", "-c", "features.multi_agent=false",
+            "-c", 'web_search="disabled"', cwd=cwd, env=environment(), limit=1_048_576,
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
         )
         self.reader = asyncio.create_task(self.read())
@@ -170,13 +176,32 @@ class AppServer:
         account = (await self.request("account/read", {"refreshToken": False})).get("account")
         self.result["account_type"] = account["type"] if account else None
         if self.result["account_type"] != "chatgpt":
-            raise PilotError("isolated_chatgpt_login_required")
+            raise AppServerError("isolated_chatgpt_login_required")
         voices = (await self.request("thread/realtime/listVoices", {}))["voices"]
         self.result["sol_listed"] = "sol" in voices["v2"] or "sol" in voices["v1"]
-        self.thread_id = (await self.request("thread/start", {
+        profile = self.backend_profile
+        started = await self.request("thread/start", {
             "cwd": str(cwd), "ephemeral": True, "sandbox": "read-only", "approvalPolicy": "never",
+            "model": profile["model"], "serviceTier": profile["service_tier"],
+            "allowProviderModelFallback": False,
+            "config": {
+                "model_reasoning_effort": profile["effort"], "features.fast_mode": True,
+                "features.shell_tool": False, "features.apps": False, "features.plugins": False,
+                "features.browser_use": False, "features.computer_use": False,
+                "features.multi_agent": False, "web_search": "disabled",
+            },
             "developerInstructions": "User-authorized assistant phone call. No tools, delegation, or other side effects.",
-        }))["thread"]["id"]
+        })
+        tier = started.get("serviceTier")
+        expected_tiers = {"fast", "priority"} if profile["service_tier"] == "fast" else {"default"}
+        if (started.get("model") != profile["model"]
+                or started.get("reasoningEffort") != profile["effort"] or tier not in expected_tiers):
+            raise AppServerError("unexpected_backend_profile")
+        self.thread_id = started["thread"]["id"]
+        self.result["backend_profile"] = {
+            "outcome": profile["outcome"], "model": started["model"],
+            "effort": started["reasoningEffort"], "service_tier": tier,
+        }
         self.result.update(thread_id=self.thread_id, requested_realtime_session_id=self.session_id)
 
     async def send(self, message):
@@ -198,7 +223,7 @@ class AppServer:
                 "method": method, "code": err.get("code"),
                 "category": error_category(err.get("message", "")),
             }
-            raise PilotError("app_server_rpc_rejected")
+            raise AppServerError("app_server_rpc_rejected")
         return response["result"]
 
     async def read(self):
@@ -230,22 +255,31 @@ class AppServer:
                 elif method == "thread/realtime/error":
                     self.result["provider_error_category"] = error_category(p.get("message", ""))
                     self.failed.set()
+                elif method == "turn/started":
+                    self.result["backend_turns_started"] = self.result.get("backend_turns_started", 0) + 1
+                elif method == "turn/completed":
+                    status = p.get("turn", {}).get("status")
+                    if status == "completed":
+                        self.result["backend_turns_completed"] = self.result.get("backend_turns_completed", 0) + 1
+                    elif status == "failed":
+                        self.result["provider_error_category"] = "backend_turn_failed"
+                        self.failed.set()
         finally:
             if not self.closed.is_set():
                 self.result.setdefault("provider_error_category", "app_server_stream_closed")
                 self.failed.set()
             for waiter in self.pending.values():
                 if not waiter.done():
-                    waiter.set_exception(PilotError("app_server_stream_closed"))
+                    waiter.set_exception(AppServerError("app_server_stream_closed"))
 
     async def until(self, condition, timeout):
         waits = [asyncio.create_task(event.wait()) for event in (condition, self.failed)]
         try:
             ready, _ = await asyncio.wait(waits, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
             if self.failed.is_set():
-                raise PilotError("provider_realtime_error")
+                raise AppServerError("provider_realtime_error")
             if not ready:
-                raise PilotError("provider_event_timeout")
+                raise AppServerError("provider_event_timeout")
         finally:
             for task in waits:
                 task.cancel()
@@ -259,16 +293,16 @@ class AppServer:
             "threadId": self.thread_id, "outputModality": "audio", "voice": "sol",
             "transport": {"type": "webrtc", "sdp": offer}, "version": "v3",
             "model": "gpt-live-1-codex", "includeStartupContext": False,
-            "realtimeSessionId": self.session_id, "clientManagedHandoffs": True,
+            "realtimeSessionId": self.session_id, "clientManagedHandoffs": False,
             "codexResponsesAsItems": False, "codexResponseHandoffMode": "thinking", "prompt": prompt,
         })
         self.result["realtime_start_acknowledged"] = True
         await self.until(self.started, 15)
         if self.result["version"] != "v3":
-            raise PilotError("unexpected_provider_version")
+            raise AppServerError("unexpected_provider_version")
         observed = self.result["observed_realtime_session_id"]
         if observed and observed != self.session_id:
-            raise PilotError("unexpected_realtime_session_id")
+            raise AppServerError("unexpected_realtime_session_id")
         await self.until(self.sdp_ready, 15)
         self.result["provider_answer_received"] = True
         await peer.answer(self.sdp)
@@ -278,7 +312,7 @@ class AppServer:
         if self.process is None:
             return
         if self.start_requested and self.process.returncode is None and not self.closed.is_set():
-            with contextlib.suppress(PilotError, OSError, TimeoutError):
+            with contextlib.suppress(AppServerError, OSError, TimeoutError):
                 await self.request("thread/realtime/stop", {"threadId": self.thread_id})
                 self.result["stop_acknowledged"] = True
                 await asyncio.wait_for(self.closed.wait(), 3)

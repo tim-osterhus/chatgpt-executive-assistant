@@ -1,4 +1,5 @@
 """Install checksum-pinned Apple Silicon binaries without changing global tools."""
+import argparse
 import hashlib
 import io
 import json
@@ -34,8 +35,12 @@ def install_archive(data, digest, member_name, destination):
     pending.replace(destination)
 
 
-def main():
+def main(argv=None):
     os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    # The SDK transport needs only its callback tunnel; LiveKit serves the legacy Media Streams room.
+    parser.add_argument("--only", choices=("cloudflared", "livekit-server"), action="append")
+    selected = parser.parse_args(argv).only
     if (platform.system(), platform.machine()) != ("Darwin", "arm64"):
         raise SystemExit("This calling add-on currently supports Apple Silicon macOS only.")
     if int(platform.mac_ver()[0].split(".")[0]) < 15:
@@ -51,6 +56,8 @@ def main():
          "cloudflared"),
     ]
     for name, digest, url, member in tools:
+        if selected and name not in selected:
+            continue
         path = cache / (name + ".tar.gz")
         if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() == digest:
             data = path.read_bytes()

@@ -1,38 +1,72 @@
 # Set up outbound calls
 
-Agent guide. This add-on is optional. Apply existing user choices and complete core assistant setup first. Do not run login, access secrets, place a call, or create a notification rule merely because this guide was opened.
+Agent guide. This add-on is optional. Complete core assistant setup and one useful task first. Do not run login, access secrets, place a call, install the watcher, or create a notification rule merely because this guide was opened. Apply the user's existing choices and ask one question at a time.
 
 ## 1. Check the selected computer
 
-Use an Apple Silicon Mac running macOS 15 or later. It must stay awake and connected during calls. Choose a connected-computer/local-task route or the optional private MCP plugin. Verify the actual selected route. Do not assume a cloud task can use this Mac's files or login.
+Use an Apple Silicon Mac running macOS 15 or later. It must stay awake and connected during calls. Choose a connected-computer/local-task route or the optional private Dot connector. Verify the actual selected route. Do not assume a cloud task can use this Mac's files or login.
 
-Confirm Node.js with npm and `uv` are available. If missing, guide installation from [Node.js](https://nodejs.org/en/download) and [uv](https://docs.astral.sh/uv/getting-started/installation/) after checking current instructions. Do not install unrelated global tools.
+Confirm these are available. If one is missing, guide installation after checking current instructions. Do not install unrelated global tools.
 
-From this add-on folder, run:
+- [uv](https://docs.astral.sh/uv/getting-started/installation/).
+- [Node.js](https://nodejs.org/en/download) 20 or later with npm. The tested version is 23.11.0.
+- Google Chrome, installed normally, for the default SDK transport. Setup uses it and never downloads a browser.
+
+## 2. Install the runtime
+
+From this add-on folder in the checkout, preview and then install:
 
 ```sh
+./setup.sh --plan
 ./setup.sh
 ```
 
-Setup creates a local Python 3.12 environment, installs locked dependencies, and downloads the pinned media binaries. It installs Codex CLI 0.160.0 under `.state/tools/`, leaving the main CLI unchanged. It generates an English disclosure WAV using macOS speech tools. It never calls a phone or starts a recurring service.
+`--plan` changes nothing. If Python 3.12 is missing, the preview says so instead of installing it.
 
-## 2. Configure the personal connection
+| Option | Effect |
+| --- | --- |
+| `--runtime-dir DIR` | Install somewhere other than `~/Library/Application Support/Executive Assistant Calls`. Paths with spaces work. |
+| `--transport media_streams` | Install the legacy Media Streams dependencies instead of the SDK ones. |
+| `--chrome PATH` | Use this installed Chrome executable instead of the detected one. |
+| `--local-mcp` | Also install local MCP dependencies, needed by the watcher and the private connector. |
 
-Edit `.state/config.json`, created from [the example](config.example.json). Set the Twilio calling line and the user's receiving number in +1 E.164 format. They must differ. Choose a Keychain account label, assistant identity, participant name, and check-in purpose. Keep actual numbers and account labels out of tracked files.
+Setup copies the allowlisted source, then creates a Python 3.12 environment and installs the pinned Codex CLI 0.160.0 inside the runtime. It downloads a checksum-pinned Cloudflared binary (plus LiveKit for Media Streams). For SDK it runs `npm ci` from the lockfile and records Node and Chrome versions in `.state/sdk-transport/readiness.json`. It generates an English disclosure WAV with macOS speech tools. It does not change the global CLI, its login, Node, or Chrome.
 
-Spoken disclosure defaults to `true`. Apply the user's installation preference through `spoken_disclosure`. The default `max_call_seconds` is `2700`, a 45-minute safety limit enforced by the carrier request and local runtime. Local audio and transcription evidence are retained regardless of disclosure. Record the user's retention choice and use context suitable for the intended recipient and providers.
+Run setup again to update the runtime. It replaces managed source and keeps `.state`, environments, and installed packages. It refuses a directory it did not create and a path inside this checkout. It defers an update while a request is being submitted, a call is running, or a submitted request has no terminal receipt. It holds the runtime's admission and call locks for the whole update. Earlier versions installed into the checkout. That ignored state stays where it is and is not migrated.
 
-Store credentials through an interactive local terminal:
+The remaining commands run from the runtime directory:
+
+```sh
+cd "$HOME/Library/Application Support/Executive Assistant Calls"
+```
+
+## 3. Configure the personal connection
+
+Edit `.state/config.json`, created from [the example](config.example.json). Set the Twilio calling line (`from_number`) and the default receiving number (`to_number`) in `+1` E.164 format. They must differ. Choose a Keychain account label, assistant identity, participant name, and check-in purpose. Keep actual numbers and labels out of tracked files.
+
+Spoken disclosure defaults to `true`. The default `max_call_seconds` is `2700`, a 45-minute safety limit enforced by the carrier request and the runtime. `voicemail_enabled` defaults to `false`. Apply the user's choices. Local audio and transcripts are retained regardless of disclosure. Record the user's retention choice.
+
+Store Twilio credentials through an interactive local terminal:
 
 ```sh
 .venv/bin/python -I -B scripts/store_twilio_credentials.py
 ```
 
-The helper asks for the Account SID and Auth Token without echoing them. It stores and verifies macOS Keychain items under the configured prefix/account. It does not send them to a model or place them in config. Existing items with that exact service/account are updated. Alternatively, create the two generic-password items in Keychain Access: `<prefix>.twilio-account-sid` and `<prefix>.twilio-auth-token`.
+The helper asks for the Account SID and Auth Token without echoing them. It stores and verifies two Keychain items under the configured prefix and account. It does not send them to a model or place them in config. Use the user's own Twilio account. Do not copy another installation's secrets or change its number routing.
 
-Use the user's own Twilio account. Do not copy another installation's secrets or change its number routing. Verify the selected line and voice capability with a narrow authenticated read when configuring the real account.
+## 4. Create owned SDK resources
 
-## 3. Complete isolated ChatGPT sign-in
+Skip this step for `media_streams`. With the user's approval, run once:
+
+```sh
+.venv/bin/python -I -B scripts/sdk_setup.py install
+```
+
+This creates one TwiML App and one Standard API key named for this installation. The key secret goes to Keychain under `<prefix>.voice-sdk.<installation-id>`. The private `.state/sdk-transport/installation.json` holds only ownership and resource IDs. A repeated `install` verifies and reuses those exact resources. An interrupted create requires reconciliation and is never retried automatically. The command never changes the phone number's webhook.
+
+`scripts/sdk_setup.py cleanup` deletes only the journaled App, key, and secret, and refuses while a call is active.
+
+## 5. Complete isolated ChatGPT sign-in
 
 ```sh
 ./run login
@@ -40,46 +74,40 @@ Use the user's own Twilio account. Do not copy another installation's secrets or
 ./run diagnose
 ```
 
-The user completes browser sign-in. The profile is private to this installation. Never copy an OAuth profile from another computer or reuse an unrelated task's credentials. Diagnostics check local readiness without dialing. They do not prove end-to-end calling or realtime entitlement.
+The user completes browser sign-in. The profile is private to this runtime. Never copy an OAuth profile from another computer or reuse an unrelated task's credentials. `diagnose` checks local readiness without dialing or contacting the provider. It does not prove end-to-end calling or realtime entitlement.
 
-If sign-in, voice access, or dependencies fail, record the actual blocker and keep the core assistant usable. Do not change the account, shared CLI, or model silently.
+If sign-in, voice access, Chrome, or dependencies fail, record the actual blocker and keep the core assistant usable. Do not change the account, shared CLI, or model silently.
 
-## 4. Connect the selected calling route
+## 6. Connect the selected calling route
 
-For direct calls from a Dot, follow [private MCP plugin setup](PRIVATE-PLUGIN.md) after completing the runtime setup above. This route exposes only health, fixed-recipient submission, and saved results. Keep its dialing gate disabled for the first health check. It does not need a separate conversational work task for each call.
+For the local skill/CLI route, copy the generated `generated/outbound-assistant-call/SKILL.md` into `.agents/skills/outbound-assistant-call/SKILL.md` in the selected assistant workspace. It already contains this runtime's runner path. Record the coordinator and originating Dot/chat route in private `local/` records. No additional manager or Voice task is required.
 
-For the local skill/CLI route:
+For direct calls from a Dot, follow [private connector setup](PRIVATE-PLUGIN.md). For a call when one job finishes, follow the optional [watcher setup](watcher/README.md). Both are separate choices.
 
-Copy [skill/SKILL.md](skill/SKILL.md) into `.agents/skills/outbound-assistant-call/SKILL.md` in the selected existing assistant workspace. Set its runner path to this installation's actual absolute path. Record the exact coordinator and originating Dot/chat route in private `local/` records. Reuse the existing coordinator. No additional manager or Voice task is required.
+The coordinator prepares context before each call. For targeted alerts, include the triggering fact, source/date, uncertainty, and the useful decision or question. Do not use the synthetic example as real project news.
 
-The coordinator prepares context before the call. For targeted alerts, include the exact triggering fact, source/date, uncertainty, and useful decision or question. Do not use the synthetic example as real project news.
+## 7. Verify one requested call
 
-## 5. Verify one requested call
+Confirm the purpose, recipient, recording/retention choice, and applicable authorization. Use the configured default recipient unless the user names another number for this call. Explain provider charges and the safety limit. Start only when the recipient is available.
 
-Confirm the purpose, fixed recipient, recording/retention choice, and applicable authorization. Explain provider charges and the configured safety limit, initially 45 minutes. Start only when the recipient is available.
+Create a fresh request ID and save the actual request privately. Validate it, then invoke `call` once. For the private connector, invoke `request_call` once with the same fields. Retrieve the terminal receipt in the originating conversation.
 
-Create a fresh request ID and save the actual request privately. For the CLI route, validate it first and invoke `call` once. For the private plugin, invoke `request_call` once with the same fields. Retrieve the real terminal receipt in the originating conversation. Do not promise a background completion callback without testing it.
+Check the Call SID, carrier status, `answered_by`, audio, supplied context, caller corrections, confirmed decisions or follow-up, and clean close. Verify no second dial. A carrier-completed call without a confirmed conversation remains partial. A voicemail receipt is delivery evidence only. Record the tested version, date, transport, evidence location, and remaining limitations. Mark only that exact route verified.
 
-Check the exact Call SID, carrier status, audio, supplied context, caller corrections, confirmed decisions/follow-up, and clean close. Retrieve `result` with the same JSON, or `get_call_status` with the exact plugin request ID. Verify no second dial. Record tested version, date, evidence location, and remaining limitations.
+## 8. Add notification rules only when selected
 
-Update the calling setup record to verified only for that exact route. A carrier-completed call without a confirmed conversational result remains partial. Preserve useful confirmed facts with the real ending reason.
+Keep calls on demand unless the user selects a concrete automatic condition. For a rule, record the selected projects/sources, condition, freshness, timezone/window, repeat policy, and authorized destination. Use a supported scheduler or event mechanism and keep its actual identifier. Calling tools do not register rules.
 
-## 6. Add notification rules only when selected
+Check admission before invoking the runner. Persist a stable event-to-request mapping and expiry so repeated events, restarts, and stale work cannot cause fresh calls. An uncertain placement stays pending for reconciliation. The optional watcher covers only jobs explicitly registered with it.
 
-Keep calls on demand unless the user selects a concrete automatic condition. For a rule, record selected projects/sources, the condition, freshness, timezone/window, repeat policy, and authorized destination. Use a supported scheduler/event mechanism and retain its actual identifier.
+## Troubleshooting, recovery, and removal
 
-The user can ask their Dot to arrange a rule through a supported route. Verify the selected plugin or local-task connection and the actual scheduler/event tools. Calling plugin tools do not register notification rules. The coordinator configures the rule through available native scheduling or source-event tools and reports its real registration and verification result. Do not claim that installing the skill alone connects the Dot or activates a rule.
+Run `diagnose` for configuration, Keychain, login, version, Chrome, and import failures. Provider reachability, account entitlement, and the per-call tunnel still need separate verification. Keep raw logs and evidence private.
 
-Check admission before invoking the runner. Persist a stable event-to-request mapping and expiry so repeated events, restarts, and queued stale work cannot cause fresh calls. An uncertain placement stays pending for reconciliation. No scheduler or durable trigger adapter ships in this first calling add-on.
+`result` reads saved evidence only. If an SDK call crashed, run `result` with the identical request first. If it still needs reconciliation, run `.venv/bin/python -I -B scripts/sdk_recover.py EXACT_REQUEST_ID`. Recovery closes admission, clears only the owned route, ends the exact recorded calls and processes, and never dials. Do not redial as a recovery shortcut.
 
-## Troubleshooting and removal
+To disable calling, disable its triggers and remove the installed skill. For the private connector, remove the dialing gate and stop its connection. For the watcher, use its uninstall command.
 
-Run `diagnose` for local configuration, Keychain, login, version, and import failures. It may still be necessary to verify provider reachability, account entitlement, or the per-call tunnel separately. Keep raw logs and evidence private.
-
-`result` reads saved evidence only. If the call-create response was lost, inspect the exact run and any known provider Call SID. Do not redial as a recovery shortcut.
-
-To disable calling, disable its actual triggers and remove the installed skill reference. For the private plugin, remove the dialing gate and stop its managed connection. Disconnect the plugin when no longer needed.
-
-Reconcile an active or uncertain call before removing the runtime. Preserve receipts and request IDs until resolved. Deleting this add-on's private login and Keychain items is a separate deliberate action. The core assistant continues to work.
+Reconcile any active or uncertain call before removal. Preserve receipts and request IDs until resolved. Run SDK `cleanup`, then delete the runtime directory and its Keychain items only as a separate deliberate action. The core assistant continues to work.
 
 Context Mill is [deferred](../context-mill/README.md) and never required for these steps.

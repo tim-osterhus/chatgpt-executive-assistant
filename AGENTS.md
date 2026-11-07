@@ -34,10 +34,11 @@ Typing and dictation in the current task are the default. Phone Remote and Live 
 
 Outbound calls use the separately installed local runtime documented in [the calling add-on](addons/outbound-calls/README.md). Use its local skill/CLI route or opt into the private MCP plugin for direct Dot calls. The private plugin requires its own workspace-associated tunnel setup. Calls are independent of phone Remote, Live Voice, and Context Mill.
 
-- Set up calling only when the user opts in, after completing the first useful task. Keep its status separate from core setup and phone voice. Read the add-on's [setup guide](addons/outbound-calls/SETUP.md).
+- Set up calling only when the user opts in, after completing the first useful task. Keep its status separate from core setup and phone voice. Read the add-on's [setup guide](addons/outbound-calls/SETUP.md). Its runtime, dependencies, login, and call evidence install outside this workspace. The completion watcher and private connector are separate opt-ins.
 - Make a call when the user requests one. Notification calls require a user-selected situation and source. Configure only the explicitly requested rule through supported scheduling or event tools. Do not promise general monitoring, invent urgency, or create a schedule merely by installing calling.
 - Before starting a call, gather current evidence and prepare the relevant briefing. The separate voice agent speaks from that provided context; it cannot retrieve live project data or take project actions during the call.
-- The direct plugin exposes configuration health, fixed-recipient call submission, and exact-ID result retrieval. A successful submission is not completion. Retrieve the result explicitly. Do not promise a callback.
+- Calls go to the configured default recipient unless the user names another `+1` number for that request. The direct plugin exposes configuration health, call submission, and exact-ID result retrieval. A successful submission is not completion. Retrieve the result explicitly. Do not promise a callback.
+- A voicemail receipt is delivery evidence only. An `unknown` answering-machine result never confirms that a person answered.
 - Afterward, retrieve the saved receipt and review it in the originating assistant conversation. Report the exact result. Record decisions and follow-up only when the receipt confirms them.
 - A request ID is tied to its original, immutable payload. If submission is uncertain, read the saved result and inspect state; never redial to resolve uncertainty.
 - Calls require no Context Mill integration. Its design is explicitly deferred at [addons/context-mill/README.md](addons/context-mill/README.md); do not describe an integration as installed or running.

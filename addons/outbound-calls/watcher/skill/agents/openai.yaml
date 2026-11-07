@@ -1,0 +1,3 @@
+interface:
+  display_name: "Assistant Call When Done"
+  short_description: "Watch one job and call about its outcome"

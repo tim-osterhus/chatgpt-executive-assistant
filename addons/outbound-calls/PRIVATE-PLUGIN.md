@@ -2,17 +2,17 @@
 
 This opt-in connector exposes the existing calling runner through three MCP tools: `calling_health`, `request_call`, and `get_call_status`. Core setup and local CLI calling do not require it. Each user installs their own private connector. Secure MCP Tunnels do not support distribution through a public plugin directory.
 
-Complete [calling setup](SETUP.md) first. The connector uses that runtime's fixed recipient, credentials, disclosure, and call limit. It accepts a focus and briefing, never a destination number. It does not change Twilio account configuration. The voice agent speaks from the supplied briefing and cannot inspect projects during the call.
+Complete [calling setup](SETUP.md) first. The connector uses that runtime's default recipient, credentials, transport, disclosure, and call limit. `request_call` takes a focus, briefing, and optional `outcome`. It calls the configured default unless a request supplies `recipient_number` (full `+1` E.164) and optionally `recipient_name` for that request only. It does not change Twilio account configuration. The voice agent speaks from the supplied briefing and cannot inspect projects during the call.
 
 ## Install separately
 
-On Apple Silicon macOS, from this add-on directory:
+On Apple Silicon macOS, from the installed runtime directory:
 
 ```sh
 .venv/bin/python -I -B scripts/private_plugin.py install
 ```
 
-This installs the official `openai/tunnel-client` v0.0.19 archive after checking its pinned SHA256, writes only its executable, and installs pinned MCP dependencies into `.plugin-venv`. It does not alter ordinary `setup.sh` dependencies or enable dialing. Other platforms are not supported by this installer. Review future client updates and their checksums before changing the pin. See the [upstream tunnel-client license](https://github.com/openai/tunnel-client/blob/v0.0.19/LICENSE).
+This installs the official `openai/tunnel-client` v0.0.19 archive after checking its pinned SHA256, writes only its executable, and installs pinned MCP dependencies into `.plugin-venv`. It does not alter the calling dependencies or enable dialing. The watcher needs only the MCP dependencies (`install-mcp-deps`, or setup's `--local-mcp`), not this client. Other platforms are not supported by this installer. Review future client updates and their checksums before changing the pin. See the [upstream tunnel-client license](https://github.com/openai/tunnel-client/blob/v0.0.19/LICENSE).
 
 ## Create and connect a private tunnel
 
@@ -41,7 +41,7 @@ Only after opting into the private connection, review and grant its plugin conse
 
 ## Verify before enabling calls
 
-1. Keep the local host awake, online, and the managed tunnel connected. Discover the three tools and invoke `calling_health`. Confirm configuration, recipient last four digits, disclosure, and call limit. Dialing should be disabled. Health does not read credentials or make a call.
+1. Keep the local host awake, online, and the managed tunnel connected. Discover the three tools and invoke `calling_health`. Confirm configuration, `phone_transport`, local SDK installation readiness, default recipient last four digits, disclosure, voicemail and ringing settings, call limit, and `per_request_recipients`. Dialing should be disabled. Health does not read credentials or make a call. It is a no-call diagnostic, separate from qualifying a real call.
 2. Only when ready to authorize calls through this private connector, enable the local gate:
 
    ```sh
@@ -60,6 +60,6 @@ Disable new calls by removing `.state/plugin/dial-enabled`. This does not cancel
 
 The plugin saves an immutable request before launching. Reusing an ID never launches again. Changing its briefing is rejected. Another unresolved request blocks new IDs. On uncertainty, query the original ID and inspect its local evidence. Never delete the journal or redial to resolve an ambiguous submission.
 
-Only a receipt bound to the exact saved request and a terminal carrier status (or a verified failure before dialing) releases admission. The public result excludes the runner’s host evidence-path field.
+Only a receipt bound to the exact saved request and a terminal carrier status (or a verified failure before dialing) releases admission. SDK receipts also need both call legs terminal, local processes stopped, and admission restored. Receipt statuses are `review_required`, `partial_or_failed`, `voicemail_played`, and `voicemail_submitted`. Voicemail receipts are delivery evidence only. The public result excludes the runner’s host evidence-path field.
 
 There is no callback, scheduler, or unattended monitoring service in this connector. The coordinator must retrieve results explicitly. Restart after logout/reboot and operation while the host sleeps have not been verified. Do not promise automatic availability. Offline tests cover submission safety and protocol discovery. Each installation still needs its own health check, authorized call, and exact-ID terminal retrieval.

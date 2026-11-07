@@ -7,5 +7,7 @@
   "participant_name": "the participant",
   "checkin_purpose": "a requested assistant conversation",
   "spoken_disclosure": true,
-  "max_call_seconds": 2700
+  "max_call_seconds": 2700,
+  "phone_transport": "sdk",
+  "voicemail_enabled": false
 }

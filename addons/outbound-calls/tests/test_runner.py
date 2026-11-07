@@ -48,6 +48,36 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.invoke("result")["status"], "request_not_found")
         self.place.assert_not_called()
 
+    def test_saved_voicemail_receipt_recovers_under_the_original_id_without_call(self):
+        run = runner.RUNS / self.request['request_id']
+        evidence = run / 'evidence'
+        evidence.mkdir(parents=True)
+        (run / 'request.json').write_text(json.dumps(self.request))
+        (run / 'dial.slot').touch()
+        sid = 'CA' + '2' * 32
+        delivery = {'kind': 'voicemail', 'status': 'played', 'message': 'A short fixture message.',
+                    'playback_completed': True, 'human_conversation_confirmed': False}
+        (evidence / 'phone-summary.json').write_text(json.dumps({'call_sid': sid, 'twilio_status': 'completed',
+             'answered_by': 'machine_end_silence', 'delivery': delivery}))
+        (evidence / 'result.json').write_text(json.dumps({'twilio_call_sid': sid, 'twilio_status': 'completed',
+             'checkin_status': 'voicemail_played', 'transcripts': []}))
+        result = self.invoke('result')
+        self.assertEqual(result['status'], 'voicemail_played')
+        self.assertEqual(result['delivery'], delivery)
+        self.assertEqual(self.invoke('call')['status'], 'voicemail_played')
+        self.place.assert_not_awaited()
+        self.assertTrue((run / 'dial.slot').is_file())
+
+    def test_voicemail_config_rejects_invalid_flags_and_ringing(self):
+        for extra in ({'voicemail_enabled': 'yes'}, {'ring_timeout_seconds': True},
+                      {'ring_timeout_seconds': 0}, {'ring_timeout_seconds': 601}):
+            (self.state / 'config.json').write_text(json.dumps({**self.config, **extra}))
+            with self.assertRaises(ValueError):
+                runner.load_config()
+        configured = {**self.config, 'voicemail_enabled': True, 'ring_timeout_seconds': 60}
+        (self.state / 'config.json').write_text(json.dumps(configured))
+        self.assertEqual(runner.load_config(), configured)
+
     def test_replay_retrieves_first_attempt_without_dial(self):
         self.assertEqual(self.invoke("call")["status"], "result_unavailable")
         self.assertEqual(self.invoke("call")["status"], "result_unavailable")
@@ -72,6 +102,29 @@ class RunnerTests(unittest.TestCase):
     def test_invalid_briefing_cannot_reach_call(self):
         self.assertEqual(self.invoke("call", {**self.request, "briefing": " "})["status"], "rejected")
         self.place.assert_not_called()
+
+    def test_outcome_is_immutable_but_absent_outcome_keeps_legacy_identity(self):
+        request = {**self.request, "briefing": "Verified completion.", "outcome": "complete"}
+        self.invoke("call", request)
+        changed = {**request, "outcome": "unclear"}
+        self.assertEqual(self.invoke("call", changed)["status"], "rejected")
+        self.assertEqual(self.place.await_count, 1)
+        self.assertNotIn("outcome", runner.validate_request(dict(self.request)))
+
+    def test_invalid_outcome_cannot_reach_call(self):
+        self.assertEqual(self.invoke("call", {**self.request, "outcome": "urgent"})["status"], "rejected")
+        self.place.assert_not_called()
+
+    def test_profile_override_and_prompt_apply_only_to_selected_call(self):
+        self.config["call_profiles"] = {"complete": {"effort": "high"}}
+        (self.state / "config.json").write_text(json.dumps(self.config))
+        app = CheckinApp({}, "Test complete", runner.load_config(), "All checks passed.", "complete")
+        self.assertEqual(app.backend_profile["model"], "gpt-6.1-terra")
+        self.assertEqual(app.backend_profile["effort"], "high")
+        self.assertIn(app.backend_profile["voice_instructions"], app.brief["text"])
+        default = CheckinApp({}, "Default", self.config, "A requested conversation.")
+        self.assertEqual(default.backend_profile["model"], "gpt-6.1-sol")
+        self.assertEqual(default.backend_profile["effort"], "medium")
 
     def test_single_dial_slot_survives_replay(self):
         slot = self.state / "dial.slot"
@@ -99,18 +152,18 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.invoke("call")["status"], "rejected")
         self.place.assert_not_called()
 
-    def test_personal_identity_replaces_mini_identity(self):
+    def test_configured_identity_replaces_default_identity(self):
         app = CheckinApp({}, self.request["focus"], runner.load_config())
         self.assertIn('"assistant_name": "Test assistant"', app.brief["text"])
-        self.assertNotIn("Kindly Loans", app.brief["text"])
-        self.assertNotIn("Cortana", app.brief["text"])
+        self.assertNotIn("Executive Assistant", app.brief["text"])
+        self.assertNotIn("a requested assistant conversation", app.brief["text"])
 
     def test_legacy_configuration_remains_supported(self):
         legacy = {k: self.config[k] for k in ("from_number", "to_number", "keychain_account")}
         (self.state / "config.json").write_text(json.dumps(legacy))
         self.assertEqual(runner.load_config(), legacy)
 
-    def test_personal_disclosure_can_be_disabled_without_blocking_audio(self):
+    def test_disclosure_can_be_disabled_without_blocking_audio(self):
         from types import SimpleNamespace
         adapter = SimpleNamespace(disclose=AsyncMock(), input_ready=asyncio.Event())
         asyncio.run(open_spoken_media(adapter, False))
@@ -139,7 +192,7 @@ class RunnerTests(unittest.TestCase):
         self.assertFalse(is_closing_utterance('They said "bye".'))
         self.assertTrue(is_closing_utterance('I will pass that request along. Goodbye.'))
         self.assertTrue(is_closing_utterance('Bye!'))
-        self.assertTrue(is_closing_utterance('Goodbye, Tim.'))
+        self.assertTrue(is_closing_utterance('Goodbye, Jordan.'))
         self.assertTrue(is_closing_utterance('Thanks, goodbye.'))
 
     def test_voice_process_eof_signals_failure_for_call_cleanup(self):
@@ -151,6 +204,28 @@ class RunnerTests(unittest.TestCase):
             await app.read()
             self.assertTrue(app.failed.is_set())
             self.assertEqual(app.result['provider_error_category'], 'app_server_stream_closed')
+        asyncio.run(probe())
+
+    def test_backing_turn_evidence_is_recorded_and_failure_signals_cleanup(self):
+        from types import SimpleNamespace
+        async def probe():
+            app = AppServer({})
+            app.thread_id = "synthetic-thread"
+            notifications = [
+                {"method": "turn/started", "params": {"threadId": app.thread_id}},
+                {"method": "turn/completed", "params": {"threadId": app.thread_id, "turn": {"status": "completed"}}},
+                {"method": "turn/completed", "params": {"threadId": app.thread_id, "turn": {"status": "failed"}}},
+                {"method": "thread/realtime/closed", "params": {"threadId": app.thread_id}},
+            ]
+            reader = SimpleNamespace(readline=AsyncMock(side_effect=[
+                *(json.dumps(item).encode() + b'\n' for item in notifications), b''
+            ]))
+            app.process = SimpleNamespace(stdout=reader)
+            await app.read()
+            self.assertEqual(app.result["backend_turns_started"], 1)
+            self.assertEqual(app.result["backend_turns_completed"], 1)
+            self.assertTrue(app.failed.is_set())
+            self.assertEqual(app.result["provider_error_category"], "backend_turn_failed")
         asyncio.run(probe())
 
 

@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "description": "Owned microphone-free calling renderer for the optional Executive Assistant calling add-on",
+  "dependencies": {
+    "@twilio/voice-sdk": "2.18.5",
+    "playwright-core": "1.65.0",
+    "twilio": "6.2.0"
+  }
+}

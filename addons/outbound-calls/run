@@ -18,7 +18,7 @@ case "$mode" in
     exec env CODEX_HOME="$bundle_dir/.state/profile" codex login status
     ;;
   validate|result|call|diagnose)
-    test -x "$bundle_dir/.venv/bin/python" || { echo "Run ./setup.sh first." >&2; exit 1; }
+    test -x "$bundle_dir/.venv/bin/python" || { echo "Install this runtime with the add-on setup.sh first." >&2; exit 1; }
     if [ "$mode" = call ]; then
       require_cli
       mkdir -p "$bundle_dir/.state/home" "$bundle_dir/.state/tmp" "$bundle_dir/.state/cache"

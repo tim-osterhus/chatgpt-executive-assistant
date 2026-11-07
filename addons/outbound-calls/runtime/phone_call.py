@@ -14,11 +14,11 @@ import secrets
 import shutil
 import time
 from pathlib import Path
-from xml.sax.saxutils import quoteattr
 from urllib.parse import urlsplit
 
 import aiohttp
-from phone_bridge import PhoneBridge
+from phone_bridge import PhoneBridge, stream_twiml
+from voicemail import AMD_TIMEOUT_SECONDS, VOICEMAIL_MAX_SECONDS, call_settings
 
 ENV_NAMES = {'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER', 'TWILIO_API_KEY_SID', 'TWILIO_API_KEY_SECRET'}
 
@@ -47,16 +47,23 @@ def preflight(target=None, max_call_seconds=2700):
     return {'destination_last4':target[-4:], 'maximum_call_seconds':max_call_seconds, 'single_call':True}
 
 
-def call_parameters(public_base, nonce, from_number, *, target, max_call_seconds=2700):
+def call_parameters(public_base, nonce, from_number, *, target, max_call_seconds=2700, voicemail_enabled=False, ring_timeout_seconds=None):
     validate_target(target)
     if not re.fullmatch(r'https://[a-z0-9-]+\.trycloudflare\.com', public_base):
         raise ValueError('Only the ephemeral Cloudflare tunnel is permitted')
     if not re.fullmatch(r'[a-zA-Z0-9_-]{32,}', nonce): raise ValueError('Invalid ephemeral nonce')
-    websocket_url = public_base.replace('https://', 'wss://', 1)+'/media/'+nonce
-    twiml = '<Response><Connect><Stream url='+quoteattr(websocket_url)+' /></Connect><Hangup /></Response>'
-    return {'To':target, 'From':from_number, 'Twiml':twiml,
-            'TimeLimit':str(max_call_seconds), 'Timeout':'20', 'Record':'false',
+    config = {'voicemail_enabled': voicemail_enabled}
+    if ring_timeout_seconds is not None: config['ring_timeout_seconds'] = ring_timeout_seconds
+    _, ringing = call_settings(config)
+    params = {'To':target, 'From':from_number,
+            'TimeLimit':str(max_call_seconds), 'Timeout':str(ringing), 'Record':'false',
             'StatusCallback':public_base+'/status/'+nonce, 'StatusCallbackEvent':'completed', 'StatusCallbackMethod':'POST'}
+    if voicemail_enabled:
+        params.update(Url=public_base+'/answer/'+nonce, Method='POST', MachineDetection='DetectMessageEnd',
+                      AsyncAmd='false', MachineDetectionTimeout=str(AMD_TIMEOUT_SECONDS))
+    else:
+        params['Twiml'] = stream_twiml(public_base, nonce)
+    return params
 
 
 class TunnelSetupError(RuntimeError):
@@ -79,7 +86,7 @@ def inspect_tunnel_log(data, diagnostics):
     if b'dial tcp [' in lower: diagnostics['ipv6_dial_failure'] = True
 
 
-async def start_tunnel(port, diagnostics=None, registration_timeout=45):
+async def start_tunnel(port, diagnostics=None, registration_timeout=45, on_started=None):
     # No saved cloudflared credentials/configuration; no ingress is persisted.
     diagnostics = diagnostics if diagnostics is not None else {}
     started = time.monotonic()
@@ -89,6 +96,14 @@ async def start_tunnel(port, diagnostics=None, registration_timeout=45):
         '--no-autoupdate', '--protocol', 'http2', '--loglevel', 'info',
         stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
         env={k:v for k,v in os.environ.items() if k in {'PATH','HOME','TMPDIR','LANG','LC_ALL','SSL_CERT_FILE','SSL_CERT_DIR'}})
+    if on_started is not None:
+        try:
+            on_started(process)
+        except BaseException:
+            if process.returncode is None:process.terminate()
+            try:await asyncio.wait_for(process.wait(),3)
+            except TimeoutError:process.kill();await process.wait()
+            raise
     ready = asyncio.Event()
     public_url = None
     async def read_logs():
@@ -217,13 +232,16 @@ async def hangup_and_reconcile(http, call_url, auth, summary):
         summary['billing_error_type'] = type(exc).__name__
 
 
-async def run(*, room_url, room_token, agent_identity='agent', output_dir, target, on_connected=None, session=None, stop_event=None, before_dial=None, max_call_seconds=2700):
+async def run(*, room_url, room_token, agent_identity='agent', output_dir, target, on_connected=None, session=None, stop_event=None, before_dial=None, max_call_seconds=2700, voicemail_enabled=False, on_voicemail=None, ring_timeout_seconds=None):
     """Place exactly one authorized call after all local and tunnel setup succeeds.
 
     This function is an execution surface. Its caller must enforce user
     authorization and the one-attempt slot. The configured carrier and local limits apply.
     """
     preflight(target, max_call_seconds)
+    settings = {'voicemail_enabled': voicemail_enabled}
+    if ring_timeout_seconds is not None: settings['ring_timeout_seconds'] = ring_timeout_seconds
+    _, ringing = call_settings(settings)
     output = Path(output_dir)
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     account = os.environ['TWILIO_ACCOUNT_SID']
@@ -232,10 +250,13 @@ async def run(*, room_url, room_token, agent_identity='agent', output_dir, targe
                              os.environ.get('TWILIO_API_KEY_SECRET') or auth_token)
     base = f'https://api.twilio.com/2010-04-01/Accounts/{account}/Calls'
     bridge = PhoneBridge(auth_token=auth_token, account_sid=account, nonce=secrets.token_urlsafe(32),
-                         output_dir=output, agent_identity=agent_identity, on_connected=on_connected)
+                         output_dir=output, agent_identity=agent_identity, on_connected=on_connected,
+                         voicemail_enabled=voicemail_enabled, on_voicemail=on_voicemail)
     tunnel = drain = None
     created = False
-    summary = {'status':'not_created', 'call_limit_seconds':max_call_seconds, 'destination_last4':target[-4:], 'billing':'pending', 'tunnel_diagnostics':{}}
+    summary = {'status':'not_created', 'call_limit_seconds':max_call_seconds, 'ring_timeout_seconds':ringing,
+               'voicemail_enabled':voicemail_enabled, 'voicemail_limit_seconds':VOICEMAIL_MAX_SECONDS,
+               'destination_last4':target[-4:], 'billing':'pending', 'tunnel_diagnostics':{}}
     started = time.monotonic()
     handler = None
     try:
@@ -253,7 +274,7 @@ async def run(*, room_url, room_token, agent_identity='agent', output_dir, targe
             bridge.log('single_call_create_attempt')
             summary['status'] = 'create_attempted'
             # No retries: an ambiguous timeout must never initiate a second call.
-            async with http.post(base+'.json', auth=auth, data=call_parameters(public_url, bridge.nonce, os.environ['TWILIO_FROM_NUMBER'], target=target, max_call_seconds=max_call_seconds)) as response:
+            async with http.post(base+'.json', auth=auth, data=call_parameters(public_url, bridge.nonce, os.environ['TWILIO_FROM_NUMBER'], target=target, max_call_seconds=max_call_seconds, voicemail_enabled=voicemail_enabled, ring_timeout_seconds=ringing)) as response:
                 payload = await response.json(content_type=None)
                 if response.status != 201:
                     summary['twilio_error_code'] = payload.get('code')
@@ -263,20 +284,26 @@ async def run(*, room_url, room_token, agent_identity='agent', output_dir, targe
                 bridge.set_call_sid(sid)
                 created = True
                 summary.update(status='created', call_sid=sid)
-            # Carrier duration excludes ringing; allow its 20-second timeout plus cleanup slack.
+            # Allow configured ringing, Twilio's possible 5-second buffer and AMD.
             waits = [asyncio.create_task(bridge.ended.wait()), asyncio.create_task(tunnel.wait())]
-            if stop_event is not None: waits.append(asyncio.create_task(stop_event.wait()))
+            stop_waiter = asyncio.create_task(stop_event.wait()) if stop_event is not None else None
+            if stop_waiter is not None: waits.append(stop_waiter)
+            voicemail_watchdog = asyncio.create_task(bridge.voicemail_watchdog()) if voicemail_enabled else None
             try:
-                done, pending = await asyncio.wait(waits, timeout=max_call_seconds+25, return_when=asyncio.FIRST_COMPLETED)
+                done, pending = await asyncio.wait(waits, timeout=max_call_seconds+ringing+5+(AMD_TIMEOUT_SECONDS if voicemail_enabled else 0), return_when=asyncio.FIRST_COMPLETED)
                 if not done: bridge.log('phone_watchdog_expired')
-                elif stop_event is not None and waits[-1] in done and stop_event.is_set():
-                    await bridge.drain_playout()
+                elif stop_waiter is not None and stop_waiter in done and stop_event.is_set():
+                    if not bridge.voicemail_started.is_set():
+                        await bridge.drain_playout()
                     bridge.log('coordinator_stop_received')
                 elif waits[1] in done: bridge.log('temporary_tunnel_exited')
             finally:
+                if voicemail_watchdog is not None: waits.append(voicemail_watchdog)
                 for waiter in waits: waiter.cancel()
                 await asyncio.gather(*waits, return_exceptions=True)
             summary['status'] = 'ended' if bridge.started.is_set() else 'no_media_stream'
+            if bridge.voicemail_started.is_set():
+                summary['status'] = 'voicemail_played' if bridge.voicemail_played else 'voicemail_attempted'
             if bridge.failure:
                 summary.update(status='failed', bridge_error_type=bridge.failure)
     except BaseException as exc:
@@ -297,6 +324,10 @@ async def run(*, room_url, room_token, agent_identity='agent', output_dir, targe
                 summary['hangup_or_billing_error_type'] = type(exc).__name__
         try: await bridge.close()
         except Exception as exc: summary['bridge_cleanup_error_type'] = type(exc).__name__
+        summary['answered_by'] = bridge.answered_by
+        summary['delivery'] = bridge.delivery()
+        if summary['status'] == 'voicemail_played' and not summary['delivery'].get('playback_completed'):
+            summary['status'] = 'voicemail_attempted'
         if tunnel and tunnel.returncode is None:
             tunnel.terminate()
             try: await asyncio.wait_for(tunnel.wait(), 3)

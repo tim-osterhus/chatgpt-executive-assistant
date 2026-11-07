@@ -64,6 +64,24 @@ class InstallationTests(unittest.TestCase):
                 installer.install_archive(data, hashlib.sha256(data).hexdigest(), "binary", target)
             self.assertFalse(target.exists())
 
+    def test_sdk_selection_installs_only_the_pinned_callback_tunnel(self):
+        directory = tempfile.TemporaryDirectory(prefix="tools root ")
+        self.addCleanup(directory.cleanup)
+        with patch.object(installer.platform, "system", return_value="Darwin"), \
+             patch.object(installer.platform, "machine", return_value="arm64"), \
+             patch.object(installer.platform, "mac_ver", return_value=("15.7", ("", "", ""), "")), \
+             patch.object(installer, "ROOT", Path(directory.name)), \
+             patch.object(installer, "fetch", side_effect=AssertionError("network")) as fetch, \
+             patch.object(installer.hashlib, "sha256") as sha, \
+             patch.object(installer, "install_archive") as unpack:
+            sha.return_value.hexdigest.return_value = installer.CLOUDFLARED_SHA
+            cache = installer.ROOT / ".state" / "downloads"
+            cache.mkdir(parents=True)
+            (cache / "cloudflared.tar.gz").write_bytes(b"cached")
+            installer.main(["--only", "cloudflared"])
+        fetch.assert_not_called()
+        self.assertEqual([call.args[2] for call in unpack.call_args_list], ["cloudflared"])
+
     def test_keychain_secret_uses_stdin_not_process_arguments(self):
         secret = "synthetic-only-secret"
         completed = [subprocess.CompletedProcess([], 0, "", ""),

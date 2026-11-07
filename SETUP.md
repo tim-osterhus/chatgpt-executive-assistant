@@ -79,7 +79,7 @@ If the user pauses before this, save `core: in-progress` and the next concrete a
 
 ## 6. Optional outbound calling
 
-After the first useful task, mention outbound calling as a separate option if relevant. Do not install or initiate calls unless the user opts in. If selected, read the [calling add-on overview](addons/outbound-calls/README.md) and follow its [setup guide](addons/outbound-calls/SETUP.md). Choose the local skill/CLI route or the optional private MCP plugin for direct Dot calls. Record the selected route, verified scope, and next action separately from core setup and phone Remote/Live Voice.
+After the first useful task, mention outbound calling as a separate option if relevant. Do not install or initiate calls unless the user opts in. If selected, read the [calling add-on overview](addons/outbound-calls/README.md) and follow its [setup guide](addons/outbound-calls/SETUP.md). Choose the local skill/CLI route or the optional private MCP plugin for direct Dot calls. Calling setup installs its runtime outside this workspace. The completion watcher is a further separate option. Record the selected route, verified scope, and next action separately from core setup and phone Remote/Live Voice.
 
 The user can ask for a call or choose a specific situation and source for notification calls. Configure only the requested rule through supported scheduling or event tools. Do not promise blanket monitoring or decide what is urgent on the user's behalf. Before a call, the coordinator prepares current context. The separate voice agent discusses that context and cannot retrieve live project information or act on projects. The coordinator reviews the exact saved receipt before accepting decisions or follow-up.
 

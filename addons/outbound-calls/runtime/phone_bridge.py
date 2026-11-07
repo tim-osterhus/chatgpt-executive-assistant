@@ -14,9 +14,17 @@ import json
 import time
 import wave
 from pathlib import Path
+from xml.sax.saxutils import quoteattr
 
 from aiohttp import web
+from av import AudioFrame, AudioResampler
 from livekit import rtc
+from voicemail import MACHINE_END_RESULTS, PLAYABLE_MACHINE_RESULTS, SOURCE_RATE, VOICEMAIL_MAX_SECONDS
+
+
+def stream_twiml(public_base, nonce):
+    url = public_base.replace('https://', 'wss://', 1) + '/media/' + nonce
+    return '<Response><Connect><Stream url=' + quoteattr(url) + ' /></Connect><Hangup /></Response>'
 
 
 def signature(token: str, url: str, params=None) -> str:
@@ -37,13 +45,21 @@ def valid_signature(token: str, public_url: str, supplied: str, params=None) -> 
 
 
 class PhoneBridge:
-    def __init__(self, *, auth_token, account_sid, nonce, output_dir, agent_identity='agent', on_connected=None):
+    def __init__(self, *, auth_token, account_sid, nonce, output_dir, agent_identity='agent', on_connected=None, voicemail_enabled=False, on_voicemail=None):
         self.auth_token = auth_token
         self.account_sid = account_sid
         self.nonce = nonce
         self.output_dir = Path(output_dir)
         self.agent_identity = agent_identity
         self.on_connected = on_connected
+        self.voicemail_enabled = voicemail_enabled
+        self.on_voicemail = on_voicemail
+        self.voicemail_metadata = {}
+        self.voicemail_capture = None
+        self.answered_by = None
+        self.answer_handled = False
+        self.voicemail_started = asyncio.Event()
+        self.voicemail_played = False
         self.public_base = None
         self.call_sid = None
         self.sid_ready = asyncio.Event()
@@ -106,15 +122,21 @@ class PhoneBridge:
         self.source = rtc.AudioSource(8000, 1, queue_size_ms=100)
         track = rtc.LocalAudioTrack.create_audio_track('phone-microphone', self.source)
         await self.room.local_participant.publish_track(track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE))
-        app = web.Application(client_max_size=16384)
-        app.router.add_get('/media/'+self.nonce, self.websocket)
-        app.router.add_post('/status/'+self.nonce, self.status)
-        app.router.add_get('/health/'+self.nonce, lambda r: web.Response(text='ready'))
+        app = self.application()
         self.runner = web.AppRunner(app, access_log=None)
         await self.runner.setup()
         site = web.TCPSite(self.runner, '127.0.0.1', 0)
         await site.start()
         return site._server.sockets[0].getsockname()[1]
+
+    def application(self):
+        app = web.Application(client_max_size=16384)
+        app.router.add_get('/media/'+self.nonce, self.websocket)
+        app.router.add_post('/status/'+self.nonce, self.status)
+        if self.voicemail_enabled:
+            app.router.add_post('/answer/'+self.nonce, self.answer)
+        app.router.add_get('/health/'+self.nonce, lambda r: web.Response(text='ready'))
+        return app
 
     def set_call_sid(self, sid):
         if self.call_sid is not None:
@@ -123,7 +145,9 @@ class PhoneBridge:
         self.sid_ready.set()
         self.log('call_created', call_sid=sid)
 
-    async def status(self, request):
+    async def authenticated_callback(self, request):
+        if not self.public_base or request.query_string:
+            raise web.HTTPForbidden()
         params = await request.post()
         url = self.public_base + request.path
         if not valid_signature(self.auth_token, url, request.headers.get('X-Twilio-Signature', ''), params):
@@ -134,6 +158,54 @@ class PhoneBridge:
             raise web.HTTPForbidden()
         if params.get('CallSid') != self.call_sid or params.get('AccountSid') != self.account_sid:
             raise web.HTTPForbidden()
+        if any(len(params.getall(key, [])) != 1 for key in ('CallSid', 'AccountSid')):
+            raise web.HTTPForbidden()
+        return params
+
+    async def answer(self, request):
+        params = await self.authenticated_callback(request)
+        if self.answer_handled or self.ended.is_set() or params.get('CallStatus') != 'in-progress':
+            raise web.HTTPForbidden()
+        if len(params.getall('AnsweredBy', [])) != 1:
+            raise web.HTTPForbidden()
+        self.answer_handled = True
+        value = params.get('AnsweredBy')
+        self.answered_by = value if value in MACHINE_END_RESULTS | {'human', 'fax', 'unknown'} else 'unknown'
+        self.log('answer_detected', answered_by=self.answered_by)
+        if self.answered_by == 'human':
+            twiml = stream_twiml(self.public_base, self.nonce)
+        elif self.answered_by in PLAYABLE_MACHINE_RESULTS:
+            self.voicemail_started.set()
+            self.log('voicemail_attempted')
+            twiml = stream_twiml(self.public_base, self.nonce)
+        else:
+            # Unknown, fax and ambiguous machine endings cannot authorize playback.
+            twiml = '<Response><Hangup /></Response>'
+        return web.Response(text=twiml, content_type='text/xml')
+
+    async def voicemail_watchdog(self):
+        await self.voicemail_started.wait()
+        try:
+            await asyncio.wait_for(self.ended.wait(), VOICEMAIL_MAX_SECONDS)
+        except TimeoutError:
+            self.failure = 'voicemail_watchdog'
+            self.log('voicemail_watchdog_expired')
+            self.ended.set()
+
+    def delivery(self):
+        if self.voicemail_started.is_set():
+            failure = self.voicemail_capture.failure if self.voicemail_capture is not None else None
+            confirmed = self.voicemail_played and not failure
+            return {'kind': 'voicemail', 'status': 'played' if confirmed else 'attempted',
+                    **self.voicemail_metadata, 'voice': 'sol', 'voice_model': 'gpt-live-1-codex',
+                    'source_failure': failure, 'playback_completed': confirmed,
+                    'playback_evidence': 'twilio_final_mark' if confirmed else None,
+                    'human_conversation_confirmed': False}
+        return {'kind': 'human' if self.answered_by == 'human' else 'undetermined',
+                'status': 'not_attempted', 'human_conversation_confirmed': False}
+
+    async def status(self, request):
+        params = await self.authenticated_callback(request)
         state = params.get('CallStatus', '')
         self.log('call_status', status=state)
         if state in {'completed', 'failed', 'busy', 'no-answer', 'canceled'}:
@@ -141,7 +213,8 @@ class PhoneBridge:
         return web.Response(status=204)
 
     async def websocket(self, request):
-        if not self.public_base or self.consumed:
+        if (not self.public_base or self.consumed or self.ended.is_set()
+                or (self.voicemail_enabled and self.answered_by not in PLAYABLE_MACHINE_RESULTS | {'human'})):
             raise web.HTTPForbidden()
         url = self.public_base.replace('https://', 'wss://', 1) + request.path
         if not valid_signature(self.auth_token, url, request.headers.get('X-Twilio-Signature', '')):
@@ -170,7 +243,12 @@ class PhoneBridge:
                         raise ValueError('Unexpected call or media format')
                     self.stream_sid = start['streamSid']
                     self.started.set(); self.log('stream_started', stream_sid=self.stream_sid)
-                    if self.on_connected: await self.on_connected()
+                    if self.voicemail_started.is_set():
+                        if self.on_voicemail is None:
+                            raise RuntimeError('Voicemail handler unavailable')
+                        self.task(self.on_voicemail(self))
+                    elif self.on_connected:
+                        await self.on_connected()
                     continue
                 if not self.started.is_set() or data.get('streamSid') != self.stream_sid:
                     raise ValueError('Unexpected stream')
@@ -205,6 +283,7 @@ class PhoneBridge:
         try:
             async for event in stream:
                 if self.ended.is_set(): break
+                if self.voicemail_started.is_set(): continue  # VM has one direct, ordered PCM sender.
                 if not self.started.is_set() or not self.ws or self.ws.closed: continue
                 pcm = event.frame.data.tobytes()
                 self.wav_out.writeframes(pcm)
@@ -220,17 +299,62 @@ class PhoneBridge:
         finally:
             await stream.aclose()
 
-    async def drain_playout(self):
+    async def play_voicemail(self, capture):
+        """One sender owns VM media, the queue-end fence, and its final mark."""
+        if not self.voicemail_started.is_set() or not self.started.is_set() or self.out_samples:
+            raise RuntimeError('Unexpected voicemail sender state')
+        self.voicemail_capture = capture
+        resampler = AudioResampler(format='s16', layout='mono', rate=8000)
+        source_samples = 0
+
+        async def submit(frame):
+            # AV planes may contain alignment padding after the valid samples.
+            converted = bytes(frame.planes[0])[:frame.samples * 2]
+            self.wav_out.writeframes(converted)
+            self.out_samples += frame.samples
+            await asyncio.wait_for(self.ws.send_json({'event': 'media', 'streamSid': self.stream_sid,
+                'media': {'payload': base64.b64encode(audioop.lin2ulaw(converted, 2)).decode()}}), 2)
+
+        while True:
+            pcm = await capture.queue.get()
+            if pcm is None:
+                break
+            if capture.failure or self.ended.is_set() or not self.ws or self.ws.closed:
+                raise RuntimeError(capture.failure or 'voicemail_transport_ended')
+            source_samples += len(pcm) // 2
+            frame = AudioFrame(format='s16', layout='mono', samples=len(pcm) // 2)
+            frame.sample_rate = SOURCE_RATE
+            frame.planes[0].update(pcm)
+            for converted in resampler.resample(frame):
+                await submit(converted)
+        # Flush the filter's delayed tail before the sample fence and final mark.
+        for converted in resampler.resample(None):
+            await submit(converted)
+        if (not capture.sealed or capture.failure or not source_samples or source_samples != capture.samples
+                or self.out_samples != (source_samples + 5) // 6):
+            raise RuntimeError(capture.failure or 'voicemail_sender_unsealed')
+        self.voicemail_metadata = {**capture.metadata, 'sender_queue_drained': True,
+                                   'submitted_pcm_samples': self.out_samples}
+        self.log('voicemail_source_sealed', **self.voicemail_metadata)
+        confirmed = await self.drain_playout(timeout=self.out_samples / 8000 + 3)
+        if not confirmed or capture.failure or self.ended.is_set():
+            raise RuntimeError(capture.failure or 'voicemail_playback_unconfirmed')
+        self.voicemail_metadata.update(matching_final_mark=True, no_clear_during_playback=True)
+        self.voicemail_played = True
+        self.log('voicemail_playback_completed', playback_evidence='twilio_final_mark')
+
+    async def drain_playout(self, timeout=3):
         if not self.ws or self.ws.closed or not self.stream_sid: return False
         name = 'final-' + str(self.mark_seq + 1)
         ack = asyncio.Event()
         clear_count = self.clear_count
+        out_samples = self.out_samples
         self.drain_acks[name] = ack
         self.marks[name] = time.monotonic()
         await self.ws.send_json({'event':'mark', 'streamSid':self.stream_sid, 'mark':{'name':name}})
         try:
-            await asyncio.wait_for(ack.wait(), 3)
-            confirmed = clear_count == self.clear_count
+            await asyncio.wait_for(ack.wait(), timeout)
+            confirmed = clear_count == self.clear_count and out_samples == self.out_samples
             self.log('final_playout_mark_acknowledged', no_clear_since_mark=confirmed)
             return confirmed
         except TimeoutError:

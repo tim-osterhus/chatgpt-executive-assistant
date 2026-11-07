@@ -1,0 +1,22 @@
+name: Calling source check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  source-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check calling source package
+        run: python -I -B addons/outbound-calls/scripts/check_source_package.py
+      - name: Test calling source checker
+        run: python -I -B -m unittest discover -s addons/outbound-calls/tests -p 'test_source_package.py'
