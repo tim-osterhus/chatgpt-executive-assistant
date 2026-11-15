@@ -20,6 +20,8 @@ If task tools are unavailable, record file access as verified and task delegatio
 
 Prefer an existing connector, plugin, or supported API. Inspect the available tools before suggesting installation. Read the selected tool's setup instructions and use its normal installation flow.
 
+Before consent for a new external service, check which account and access are requested, where its documentation says data goes, and any limits relevant to the task. Explain these in context and use the user's existing authorizations without asking again. Let the user complete consent; keep credentials in the app or its credential store.
+
 If the workflow requires computer control, follow [OpenAI's Computer Use setup](https://learn.chatgpt.com/docs/computer-use). The documented desktop route is **Plugins → Computer Use**. Install or enable the plugin and its required components as shown. Follow the app's platform-specific permission prompts.
 
 For an external browser, follow the tool's browser connection instructions. Connect the browser and profile the user intends to use. Ask the user to complete login and consent when needed.

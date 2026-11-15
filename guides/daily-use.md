@@ -14,6 +14,18 @@ Open the **Executive Assistant** project and continue in an existing task. Use t
 
 When an answer is unclear, describe the correction in normal language. The assistant should update the relevant private notes.
 
+## Useful everyday workflows
+
+Try a request like one of these, adapting the details to your needs:
+
+- **Triage an inbox:** “Check my work email from the last two days. Group messages into reply needed, decision needed, and for awareness. Link each original message and suggest drafts for replies.”
+- **Get a weekday briefing:** “Every weekday at 8 a.m. Pacific time, check my work calendar and email and deliver a short briefing here.”
+- **Watch a price:** “Check the price of the [item] at [store or page] once a day. Notify me here if it drops below $50. Stop on December 31. Do not buy it.”
+
+The assistant can help fill in missing choices one at a time, with suggested options, and reuse preferences it already knows. For a briefing, specify the time, time zone, and where to deliver it. For a price watch, specify the item and source, threshold, check frequency, notification channel, and stop date.
+
+Recurring checks run only when you explicitly request them and a supported scheduling tool confirms registration. The assistant should confirm the cadence, delivery method, and stop condition in plain language. If scheduling is unavailable, it should say that no automation is running; saving a note alone does not monitor anything.
+
 ## Optional outbound calls
 
 When the [outbound-calling add-on](../addons/outbound-calls/README.md) is installed, you can ask the assistant to call someone or ask it to prepare a call using current project context. Review the proposed recipient, briefing, and purpose before a user-initiated call.
